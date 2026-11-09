@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Budget">
+    <title>Full Budget Tracker</title>
+    <style>
+        :root {
+            --bg: #0f0f0f; --card: #1c1c1c; --card-hover: #222222;
+            --text: #ffffff; --text-muted: #9aa0a6; --border: #333333;
+            --blue: #8ab4f8; --green: #81c995; --yellow: #fdd663; --red: #f28b82; 
+            --purple: #c58af9; --orange: #fcad70;
+            --input-bg: #28292a;
+            --input-height: 48px; /* Altura estandarizada para todo iOS/Android */
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; 
+            background-color: var(--bg); color: var(--text); padding: 0; margin: 0; line-height: 1.5;
+            padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Espacio para iPhone Home Bar */
+        }
+
+        .container { max-width: 650px; margin: 0 auto; padding: 20px; }
+
+        /* Top Header */
+        .header { 
+            display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center;
+            background: var(--card); padding: 20px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--border);
+        }
+        .header-col { display: flex; flex-direction: column; width: 100%; flex: 1; min-width: 130px; }
+        .header-title { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 8px; }
+        .surplus { font-size: 1.6rem; font-weight: 700; transition: color 0.3s; }
+        
+        /* Controles de Formulario Estandarizados */
+        select, input[type="text"], input[type="date"] {
+            background: var(--input-bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; 
+            height: var(--input-height); padding: 0 14px; font-size: 16px; /* 16px previene el zoom en iOS */
+            outline: none; width: 100%; font-family: inherit; -webkit-appearance: none; appearance: none;
+        }
+        
+        /* Flecha personalizada para selectores */
+        select {
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239aa0a6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat, repeat;
+            background-position: right .7em top 50%, 0 0;
+            background-size: .65em auto, 100%;
+        }
+        
+        select:focus, input:focus { border-color: #666; }
+
+        .input-prefix {
+            display: flex; align-items: center; background: var(--input-bg); border: 1px solid var(--border); 
+            border-radius: 10px; padding: 0 14px; height: var(--input-height); width: 100%;
+        }
+        .input-prefix span { color: var(--text-muted); font-size: 16px; font-weight: 500; }
+        .input-prefix input { 
+            border: none; background: transparent; padding: 0 0 0 8px; color: var(--text); 
+            font-size: 16px; width: 100%; height: 100%; text-align: right; outline: none;
+        }
+
+        /* Shared UI */
+        .section { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; }
+        .dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 10px; }
+        .bg-blue { background-color: var(--blue); } .bg-green { background-color: var(--green); } 
+        .bg-yellow { background-color: var(--yellow); } .bg-red { background-color: var(--red); }
+        .bg-purple { background-color: var(--purple); } .bg-orange { background-color: var(--orange); }
+
+        .total-amount { font-family: monospace; font-size: 1.1rem; color: var(--text-muted); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 550px) { .grid { grid-template-columns: 1fr; } }
+        
+        .item-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .item-label { font-size: 0.95rem; color: var(--text-muted); font-weight: 500; }
+        
+        .icon-btn { background: transparent; border: none; color: #666; cursor: pointer; font-size: 1.3rem; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.2s; }
+        .icon-btn:hover { color: var(--red); background: rgba(255,0,0,0.1); }
+        
+        .primary-btn { 
+            width: 100%; background: var(--blue); color: #000; border: none; border-radius: 10px; 
+            height: var(--input-height); font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 10px; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        .primary-btn:hover { background: #6b9dfa; }
+        
+        .add-cat-btn { 
+            width: 100%; background: transparent; border: 2px dashed var(--border); border-radius: 12px; 
+            color: var(--text-muted); height: 56px; font-size: 1rem; font-weight: 600; cursor: pointer; 
+            margin-bottom: 20px; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Sliders Layout */
+        .slider-row { display: flex; align-items: center; gap: 15px; }
+        input[type=range] { -webkit-appearance: none; flex-grow: 1; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #444; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: var(--text); margin-top: -9px; border: 3px solid var(--text); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        
+        .blue-section input[type=range]::-webkit-slider-thumb { border-color: var(--blue); }
+        .green-section input[type=range]::-webkit-slider-thumb { border-color: var(--green); }
+        .yellow-section input[type=range]::-webkit-slider-thumb { border-color: var(--yellow); }
+        .red-section input[type=range]::-webkit-slider-thumb { border-color: var(--red); }
+        .purple-section input[type=range]::-webkit-slider-thumb { border-color: var(--purple); }
+        .orange-section input[type=range]::-webkit-slider-thumb { border-color: var(--orange); }
+
+        /* Navigation */
+        .bottom-nav { 
+            position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(28, 28, 28, 0.95); 
+            backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; 
+            justify-content: space-around; padding: 12px 10px calc(12px + env(safe-area-inset-bottom)) 10px; z-index: 100; 
+        }
+        .nav-item { color: var(--text-muted); font-size: 0.95rem; font-weight: 600; text-align: center; cursor: pointer; padding: 10px; flex-grow: 1; transition: 0.2s; border-radius: 8px; }
+        .nav-item.active { color: var(--text); background: rgba(255,255,255,0.05); }
+
+        /* Views */
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Log History List */
+        .log-list { margin-top: 20px; }
+        .log-item-card { display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); padding: 16px; border-radius: 12px; margin-bottom: 12px; border-left: 5px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .log-info { display: flex; flex-direction: column; }
+        .log-desc { font-weight: 500; font-size: 1rem; color: var(--text); }
+        .log-meta { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+        .log-amount { font-family: monospace; font-size: 1.15rem; font-weight: 600; }
+
+        /* Comparison Bars */
+        .compare-row { margin-bottom: 22px; }
+        .compare-labels { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 8px; }
+        .compare-bar-bg { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; position: relative; }
+        .compare-bar-fill { height: 100%; border-radius: 5px; transition: width 0.4s; }
+        .over-budget { background-color: var(--red) !important; }
+        
+        .cat-compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        .cat-compare-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; }
+        
+        /* FormGroup util para espaciado en la tab LOG */
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 0.95rem; color: var(--text-muted); font-weight: 500; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Global Header -->
+        <div class="header">
+            <div class="header-col">
+                <div class="header-title">Select Month</div>
+                <select id="monthSelector" onchange="changeMonth()">
+                    <option value="2026-11">November 2026</option>
+                    <option value="2026-12" selected>December 2026</option>
+                    <option value="2027-01">January 2027</option>
+                    <option value="2027-02">February 2027</option>
+                </select>
+            </div>
+            <div class="header-col" style="text-align: right; min-width: 140px;">
+                <div class="header-title">Remaining Surplus</div>
+                <div id="surplusDisplay" class="surplus">Q 0</div>
+            </div>
+        </div>
+
+        <!-- VIEW 1: PLAN BUDGET -->
+        <div id="view-plan" class="view active">
+            <div class="section">
+                <div class="item-label-row" style="margin-bottom: 12px;"><span class="item-label" style="font-weight: 600;">Monthly Income</span></div>
+                <div class="input-prefix"><span>Q</span><input type="number" id="incomeInput" value="0"></div>
+            </div>
+            <div id="appContainer"></div>
+            <button class="add-cat-btn" onclick="addCategory()">+ Add New Category</button>
+        </div>
+
+        <!-- VIEW 2: LOG ACTUAL EXPENSES -->
+        <div id="view-log" class="view">
+            <div class="section">
+                <div class="section-header">Record New Expense</div>
+                
+                <div class="form-group">
+                    <label>Amount</label>
+                    <div class="input-prefix"><span>Q</span><input type="number" id="logAmount" placeholder="0.00"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="logDesc" placeholder="e.g., Shell Gas Station">
+                </div>
+                
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="logCat" onchange="updateLogItems()"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Specific Item</label>
+                    <select id="logItem"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="logDate">
+                </div>
+                
+                <button class="primary-btn" onclick="saveActualExpense()">Log Expense</button>
+            </div>
+
+            <div class="section-header" style="margin-top: 30px;">Recent Logs (This Month)</div>
+            <div id="logHistoryContainer" class="log-list"></div>
+        </div>
+
+        <!-- VIEW 3: COMPARE (BUDGET VS ACTUAL) -->
+        <div id="view-compare" class="view">
+            <div class="section">
+                <div class="section-header">Monthly Overview</div>
+                <div class="compare-row" style="margin-bottom: 0;">
+                    <div class="compare-labels">
+                        <span style="font-weight:600;">Total Spending</span>
+                        <span id="overviewText">Q0 Actual / Q0 Budgeted</span>
+                    </div>
+                    <div class="compare-bar-bg" style="height: 12px;">
+                        <div id="overviewBar" class="compare-bar-fill bg-blue" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="compareContainer"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('plan', this)">🎯 Plan</div>
+        <div class="nav-item" onclick="switchTab('log', this)">📝 Log Actuals</div>
+        <div class="nav-item" onclick="switchTab('compare', this)">📊 Compare</div>
+    </div>
+
+    <script>
+        const formatMoney = (amount) => amount.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+        let currentMonth = document.getElementById('monthSelector').value;
+        
+        // Auto-set today's date
+        document.getElementById('logDate').valueAsDate = new Date();
+
+        const defaultSchema = [
+            { id: 'cat_debt', title: 'Debt / Savings', color: 'blue', items: [ { id: 'cc_balance', label: 'Credit Card Balance' }, { id: 'installments', label: 'Installments' } ]},
+            { id: 'cat_fixed', title: 'Fixed Obligations', color: 'green', items: [ { id: 'university', label: 'University Mensuality' }, { id: 'house', label: 'House Services' }]},
+            { id: 'cat_trans', title: 'Transportation', color: 'yellow', items: [ { id: 'gasoline', label: 'Gasoline' }, { id: 'parking', label: 'Parking' }]},
+            { id: 'cat_life', title: 'Lifestyle & Food', color: 'red', items: [ { id: 'work_food', label: 'Work Food' }]}
+        ];
+
+        let schema = JSON.parse(localStorage.getItem('budget_schema')) || defaultSchema;
+        let allValues = JSON.parse(localStorage.getItem('budget_values')) || { '2026-12': { income: 11000, gasoline: 1500, work_food: 1114 } };
+        let allActuals = JSON.parse(localStorage.getItem('budget_actuals')) || {}; 
+
+        // ----------- TAB NAVIGATION -----------
+        function switchTab(tabName, el) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${tabName}`).classList.add('active');
+            el.classList.add('active');
+
+            if(tabName === 'plan') renderPlanTab();
+            if(tabName === 'log') renderLogTab();
+            if(tabName === 'compare') renderCompareTab();
+            
+            updateGlobalHeader();
+        }
+
+        function changeMonth() {
+            currentMonth = document.getElementById('monthSelector').value;
+            renderPlanTab();
+            renderLogTab();
+            renderCompareTab();
+            updateGlobalHeader();
+        }
+
+        // ----------- DATA HELPERS -----------
+        function getBudgetVal(id) {
+            if (!allValues[currentMonth]) allValues[currentMonth] = {};
+            return allValues[currentMonth][id] || 0;
+        }
+
+        function getActualsForMonth() {
+            if (!allActuals[currentMonth]) allActuals[currentMonth] = [];
+            return allActuals[currentMonth];
+        }
+
+        function saveAll() {
+            localStorage.setItem('budget_schema', JSON.stringify(schema));
+            localStorage.setItem('budget_values', JSON.stringify(allValues));
+            localStorage.setItem('budget_actuals', JSON.stringify(allActuals));
+            updateGlobalHeader();
+        }
+
+        // ----------- VIEW 1: PLAN BUDGET -----------
+        function renderPlanTab() {
+            const container = document.getElementById('appContainer');
+            let html = '';
+
+            schema.forEach(cat => {
+                html += `
+                <div class="section ${cat.color}-section">
+                    <div class="section-header">
+                        <div style="display: flex; align-items: center;"><span class="dot bg-${cat.color}"></span> ${cat.title}</div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div id="total-${cat.id}" class="total-amount">Q 0</div>
+                            <button class="icon-btn" onclick="deleteCategory('${cat.id}')">×</button>
+                        </div>
+                    </div>
+                    <div class="grid">`;
+                
+                cat.items.forEach(item => {
+                    const val = getBudgetVal(item.id);
+                    const sliderMax = Math.max(3000, Math.ceil(val / 1000) * 1000); 
+                    
+                    html += `
+                        <div>
+                            <div class="item-label-row">
+                                <div class="item-label">${item.label}</div>
+                                <button class="icon-btn" onclick="deleteItem('${cat.id}', '${item.id}')">×</button>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" class="slider" data-id="${item.id}" min="0" max="${sliderMax}" value="${val}">
+                                <div class="input-prefix" style="width: 110px; flex-shrink: 0;">
+                                    <span>Q</span><input type="number" class="num-input" data-id="${item.id}" value="${val}">
+                                </div>
+                            </div>
+                        </div>`;
+                });
+
+                html += `</div>
+                        <div style="text-align:center; margin-top:20px;">
+                            <button class="icon-btn" style="width:auto; height:auto; border:1px solid #444; border-radius:8px; padding:8px 16px; font-size:0.95rem; margin:0 auto;" onclick="addItem('${cat.id}')">+ Add Item</button>
+                        </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+            document.getElementById('incomeInput').value = getBudgetVal('income');
+            
+            // Attach Events
+            document.getElementById('incomeInput').addEventListener('input', (e) => {
+                allValues[currentMonth]['income'] = parseFloat(e.target.value) || 0;
+                saveAll();
+            });
+
+            document.querySelectorAll('.slider-row').forEach(group => {
+                const slider = group.querySelector('.slider');
+                const num = group.querySelector('.num-input');
+                const id = num.getAttribute('data-id');
+                
+                const update = (val) => {
+                    allValues[currentMonth][id] = parseFloat(val) || 0;
+                    saveAll();
+                    updateCategoryTotals();
+                };
+
+                slider.addEventListener('input', (e) => { num.value = e.target.value; update(e.target.value); });
+                num.addEventListener('input', (e) => { 
+                    slider.value = e.target.value || 0; 
+                    if (parseFloat(e.target.value) > parseFloat(slider.max)) slider.max = Math.ceil(e.target.value / 1000) * 1000;
+                    update(e.target.value); 
+                });
+            });
+            updateCategoryTotals();
+        }
+
+        function updateCategoryTotals() {
+            schema.forEach(cat => {
+                let catSum = 0;
+                cat.items.forEach(item => { catSum += getBudgetVal(item.id); });
+                const el = document.getElementById(`total-${cat.id}`);
+                if(el) el.innerText = `Q ${formatMoney(catSum)}`;
+            });
+        }
+
+        // ----------- VIEW 2: LOG EXPENSES -----------
+        function renderLogTab() {
+            const catSelect = document.getElementById('logCat');
+            catSelect.innerHTML = '<option value="">-- Select Category --</option>';
+            schema.forEach(cat => { catSelect.innerHTML += `<option value="${cat.id}">${cat.title}</option>`; });
+            
+            updateLogItems();
+            renderLogHistory();
+        }
+
+        function updateLogItems() {
+            const catId = document.getElementById('logCat').value;
+            const itemSelect = document.getElementById('logItem');
+            itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
+            
+            const cat = schema.find(c => c.id === catId);
+            if(cat) { cat.items.forEach(i => { itemSelect.innerHTML += `<option value="${i.id}">${i.label}</option>`; }); }
+        }
+
+        function saveActualExpense() {
+            const amount = parseFloat(document.getElementById('logAmount').value);
+            const desc = document.getElementById('logDesc').value;
+            const catId = document.getElementById('logCat').value;
+            const itemId = document.getElementById('logItem').value;
+            const date = document.getElementById('logDate').value;
+
+            if(!amount || !catId || !itemId) return alert("Please fill amount, category, and item.");
+
+            const cat = schema.find(c => c.id === catId);
+            const newTx = { id: 'tx_' + Date.now(), amount, desc: desc || 'Untitled', catId, itemId, date, color: cat.color };
+            
+            getActualsForMonth().unshift(newTx);
+            saveAll();
+            
+            document.getElementById('logAmount').value = '';
+            document.getElementById('logDesc').value = '';
+            renderLogHistory();
+        }
+
+        function renderLogHistory() {
+            const container = document.getElementById('logHistoryContainer');
+            const actuals = getActualsForMonth();
+            
+            if(actuals.length === 0) { container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding: 20px;">No expenses logged this month yet.</div>'; return; }
+
+            let html = '';
+            actuals.forEach(tx => {
+                const cat = schema.find(c => c.id === tx.catId);
+                const item = cat ? cat.items.find(i => i.id === tx.itemId) : null;
+                const itemLabel = item ? item.label : 'Deleted Item';
+
+                html += `
+                <div class="log-item-card" style="border-left-color: var(--${tx.color})">
+                    <div class="log-info">
+                        <div class="log-desc">${tx.desc}</div>
+                        <div class="log-meta">${itemLabel} • ${tx.date}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="log-amount">Q ${formatMoney(tx.amount)}</div>
+                        <button class="icon-btn" onclick="deleteActual('${tx.id}')">×</button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function deleteActual(txId) {
+            allActuals[currentMonth] = getActualsForMonth().filter(tx => tx.id !== txId);
+            saveAll();
+            renderLogHistory();
+        }
+
+        // ----------- VIEW 3: COMPARE -----------
+        function renderCompareTab() {
+            const container = document.getElementById('compareContainer');
+            const actuals = getActualsForMonth();
+            let totalBudgeted = 0;
+            let totalActual = 0;
+            let html = '';
+
+            schema.forEach(cat => {
+                let catBudget = 0;
+                let catActual = 0;
+                let itemsHtml = '';
+
+                cat.items.forEach(item => {
+                    const iBudget = getBudgetVal(item.id);
+                    const iActual = actuals.filter(tx => tx.itemId === item.id).reduce((sum, tx) => sum + tx.amount, 0);
+                    
+                    catBudget += iBudget;
+                    catActual += iActual;
+                    
+                    if(iBudget > 0 || iActual > 0) {
+                        const iPct = iBudget > 0 ? Math.min((iActual / iBudget) * 100, 100) : 100;
+                        const isOver = iActual > iBudget;
+                        
+                        itemsHtml += `
+                        <div class="compare-row">
+                            <div class="compare-labels">
+                                <span>${item.label}</span>
+                                <span style="color: ${isOver ? 'var(--red)' : 'var(--text-muted)'}">Q ${formatMoney(iActual)} / Q ${formatMoney(iBudget)}</span>
+                            </div>
+                            <div class="compare-bar-bg">
+                                <div class="compare-bar-fill bg-${cat.color} ${isOver ? 'over-budget' : ''}" style="width: ${iPct}%;"></div>
+                            </div>
+                        </div>`;
+                    }
+                });
+
+                totalBudgeted += catBudget;
+                totalActual += catActual;
+
+                if (catBudget > 0 || catActual > 0) {
+                    html += `
+                    <div class="cat-compare-card">
+                        <div class="cat-compare-title"><span class="dot bg-${cat.color}"></span> ${cat.title} <span style="margin-left:auto; font-size:0.95rem; font-weight:normal; color:var(--text-muted)">Q ${formatMoney(catActual)} / Q ${formatMoney(catBudget)}</span></div>
+                        ${itemsHtml}
+                    </div>`;
+                }
+            });
+
+            container.innerHTML = html;
+
+            document.getElementById('overviewText').innerText = `Q ${formatMoney(totalActual)} Actual / Q ${formatMoney(totalBudgeted)} Budgeted`;
+            const overPct = totalBudgeted > 0 ? Math.min((totalActual / totalBudgeted) * 100, 100) : 0;
+            const bar = document.getElementById('overviewBar');
+            bar.style.width = `${overPct}%`;
+            bar.className = `compare-bar-fill ${totalActual > totalBudgeted ? 'bg-red' : 'bg-blue'}`;
+        }
+
+        // ----------- GLOBAL HEADER -----------
+        function updateGlobalHeader() {
+            const income = getBudgetVal('income');
+            const actuals = getActualsForMonth();
+            const totalActualExpenses = actuals.reduce((sum, tx) => sum + tx.amount, 0);
+            
+            const surplus = income - totalActualExpenses;
+            const el = document.getElementById('surplusDisplay');
+            el.innerText = `Q ${formatMoney(surplus)}`;
+            el.style.color = surplus >= 0 ? 'var(--green)' : 'var(--red)';
+        }
+
+        // ----------- DYNAMIC STRUCTURE EDITING -----------
+        function addCategory() {
+            const title = prompt("New category name:");
+            if (!title) return;
+            const color = prompt("Color (blue, green, yellow, red, purple, orange):", "purple") || "purple";
+            schema.push({ id: 'cat_' + Date.now(), title, color, items: [] });
+            saveAll();
+            renderPlanTab();
+        }
+
+        function addItem(catId) {
+            const label = prompt("Expense item name:");
+            if (!label) return;
+            const cat = schema.find(c => c.id === catId);
+            cat.items.push({ id: 'item_' + Date.now(), label });
+            saveAll();
+            renderPlanTab();
+        }
+
+        function deleteCategory(id) {
+            if(confirm("Delete entire category?")) { schema = schema.filter(c => c.id !== id); saveAll(); renderPlanTab(); }
+        }
+
+        function deleteItem(catId, itemId) {
+            if(confirm("Delete item?")) {
+                const cat = schema.find(c => c.id === catId);
+                cat.items = cat.items.filter(i => i.id !== itemId);
+                saveAll();
+                renderPlanTab();
+            }
+        }
+
+        // INITIALIZE
+        renderPlanTab();
+        updateGlobalHeader();
+    </script>
+</body>
+</html>
