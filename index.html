@@ -181,6 +181,12 @@
             </div>
             <div id="appContainer"></div>
             <button class="add-cat-btn" onclick="addCategory()">+ Agregar Nueva Categoría</button>
+            <!-- Botones de Respaldo -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+    <button class="export-btn" style="flex: 1; border-color: var(--blue); color: var(--blue);" onclick="exportBackup()">⬇️ Respaldar Datos</button>
+    <button class="export-btn" style="flex: 1; border-color: var(--yellow); color: var(--yellow);" onclick="document.getElementById('importFile').click()">⬆️ Importar Datos</button>
+    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importBackup(event)">
+</div>
         </div>
 
         <!-- VISTA 2: INGRESOS -->
@@ -666,6 +672,50 @@
         }
 
         // INICIALIZACIÓN
+
+        // ----------- RESPALDO (IMPORTAR / EXPORTAR JSON) -----------
+        function exportBackup() {
+            const data = {
+                schema: localStorage.getItem('budget_schema'),
+                values: localStorage.getItem('budget_values'),
+                actuals: localStorage.getItem('budget_actuals'),
+                incomes: localStorage.getItem('budget_incomes') || "{}"
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `Presupuesto_Respaldo_${dateStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(confirm("¿Estás seguro? Esto reemplazará todos los datos actuales por los del archivo de respaldo.")){
+                        if (data.schema) localStorage.setItem('budget_schema', data.schema);
+                        if (data.values) localStorage.setItem('budget_values', data.values);
+                        if (data.actuals) localStorage.setItem('budget_actuals', data.actuals);
+                        if (data.incomes) localStorage.setItem('budget_incomes', data.incomes);
+                        alert("Datos importados con éxito. La aplicación se recargará.");
+                        location.reload(); // Recarga para aplicar los nuevos datos
+                    }
+                } catch (err) {
+                    alert("Error al leer el archivo. Asegúrate de que sea un archivo de respaldo válido (.json).");
+                }
+                // Limpiar el input para permitir importar el mismo archivo de nuevo si es necesario
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+        
         renderPlanTab();
         updateGlobalHeader();
     </script>
