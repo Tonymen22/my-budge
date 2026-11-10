@@ -354,8 +354,9 @@
                 <div class="section ${cat.color}-section">
                     <div class="section-header">
                         <div style="display: flex; align-items: center;"><span class="dot bg-${cat.color}"></span> ${cat.title}</div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <div id="total-${cat.id}" class="total-amount">Q 0</div>
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            <div id="total-${cat.id}" class="total-amount" style="margin-right: 10px;">Q 0</div>
+                            <button class="icon-btn" style="font-size: 1rem;" onclick="editCategory('${cat.id}')">✏️</button>
                             <button class="icon-btn" onclick="deleteCategory('${cat.id}')">×</button>
                         </div>
                     </div>
@@ -368,7 +369,10 @@
                         <div>
                             <div class="item-label-row">
                                 <div class="item-label">${item.label}</div>
-                                <button class="icon-btn" onclick="deleteItem('${cat.id}', '${item.id}')">×</button>
+                                <div style="display:flex; gap: 5px;">
+                                    <button class="icon-btn" style="width: 24px; height: 24px; font-size: 0.85rem;" onclick="editItem('${cat.id}', '${item.id}')">✏️</button>
+                                    <button class="icon-btn" style="width: 24px; height: 24px;" onclick="deleteItem('${cat.id}', '${item.id}')">×</button>
+                                </div>
                             </div>
                             <div class="slider-row">
                                 <input type="range" class="slider" data-id="${item.id}" min="0" max="${sliderMax}" value="${val}">
@@ -639,7 +643,7 @@
             window.print();
         }
 
-        // ----------- EDICIÓN DE CATEGORÍAS -----------
+        // ----------- EDICIÓN DE CATEGORÍAS E ÍTEMS -----------
         function addCategory() {
             const title = prompt("Nombre de la nueva categoría:");
             if (!title) return;
@@ -656,6 +660,30 @@
             cat.items.push({ id: 'item_' + Date.now(), label });
             saveAll();
             renderPlanTab();
+        }
+
+        function editCategory(id) {
+            const cat = schema.find(c => c.id === id);
+            if(!cat) return;
+            const newTitle = prompt("Editar nombre de la categoría:", cat.title);
+            if (newTitle && newTitle.trim() !== "") {
+                cat.title = newTitle.trim();
+                saveAll();
+                renderPlanTab();
+            }
+        }
+
+        function editItem(catId, itemId) {
+            const cat = schema.find(c => c.id === catId);
+            if(!cat) return;
+            const item = cat.items.find(i => i.id === itemId);
+            if(!item) return;
+            const newLabel = prompt("Editar nombre del ítem:", item.label);
+            if (newLabel && newLabel.trim() !== "") {
+                item.label = newLabel.trim();
+                saveAll();
+                renderPlanTab();
+            }
         }
 
         function deleteCategory(id) {
