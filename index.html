@@ -1,12 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Budget">
-    <title>Full Budget Tracker</title>
+    <meta name="apple-mobile-web-app-title" content="Presupuesto">
+    <title>Presupuesto</title>
+    
+    <!-- Configuración para App Nativa / PWA -->
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .catch(err => console.warn('Error en Service Worker', err));
+            });
+        }
+    </script>
+
     <style>
         :root {
             --bg: #0f0f0f; --card: #1c1c1c; --card-hover: #222222;
@@ -27,7 +39,7 @@
 
         .container { max-width: 650px; margin: 0 auto; padding: 20px; }
 
-        /* Top Header */
+        /* Encabezado Superior */
         .header { 
             display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center;
             background: var(--card); padding: 20px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--border);
@@ -36,8 +48,8 @@
         .header-title { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 8px; }
         .surplus { font-size: 1.6rem; font-weight: 700; transition: color 0.3s; }
         
-        /* Controles de Formulario Estandarizados */
-        select, input[type="text"], input[type="date"] {
+        /* Controles de Formulario */
+        select, input[type="text"], input[type="date"], input[type="number"] {
             background: var(--input-bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; 
             height: var(--input-height); padding: 0 14px; font-size: 16px; 
             outline: none; width: 100%; font-family: inherit; -webkit-appearance: none; appearance: none;
@@ -47,7 +59,6 @@
             background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239aa0a6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
             background-repeat: no-repeat, repeat; background-position: right .7em top 50%, 0 0; background-size: .65em auto, 100%;
         }
-        
         select:focus, input:focus { border-color: #666; }
 
         .input-prefix {
@@ -55,12 +66,9 @@
             border-radius: 10px; padding: 0 14px; height: var(--input-height); width: 100%;
         }
         .input-prefix span { color: var(--text-muted); font-size: 16px; font-weight: 500; }
-        .input-prefix input { 
-            border: none; background: transparent; padding: 0 0 0 8px; color: var(--text); 
-            font-size: 16px; width: 100%; height: 100%; text-align: right; outline: none;
-        }
+        .input-prefix input { border: none; background: transparent; padding: 0 0 0 8px; color: var(--text); font-size: 16px; width: 100%; height: 100%; text-align: right; outline: none; }
 
-        /* Shared UI */
+        /* Interfaz Compartida */
         .section { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
         .section-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; }
         .dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 10px; }
@@ -79,11 +87,11 @@
         .icon-btn:hover { color: var(--red); background: rgba(255,0,0,0.1); }
         
         .primary-btn { width: 100%; background: var(--blue); color: #000; border: none; border-radius: 10px; height: var(--input-height); font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; }
-        .primary-btn:hover { background: #6b9dfa; }
+        .primary-btn:hover { filter: brightness(1.1); }
         
         .add-cat-btn { width: 100%; background: transparent; border: 2px dashed var(--border); border-radius: 12px; color: var(--text-muted); height: 56px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; }
 
-        /* Sliders */
+        /* Barras Deslizables (Sliders) */
         .slider-row { display: flex; align-items: center; gap: 15px; }
         input[type=range] { -webkit-appearance: none; flex-grow: 1; background: transparent; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #444; border-radius: 2px; }
@@ -96,16 +104,16 @@
         .purple-section input[type=range]::-webkit-slider-thumb { border-color: var(--purple); }
         .orange-section input[type=range]::-webkit-slider-thumb { border-color: var(--orange); }
 
-        /* Navigation */
+        /* Navegación Inferior */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(28, 28, 28, 0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 12px 10px calc(12px + env(safe-area-inset-bottom)) 10px; z-index: 100; }
-        .nav-item { color: var(--text-muted); font-size: 0.95rem; font-weight: 600; text-align: center; cursor: pointer; padding: 10px; flex-grow: 1; transition: 0.2s; border-radius: 8px; }
+        .nav-item { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; text-align: center; cursor: pointer; padding: 10px 5px; flex-grow: 1; transition: 0.2s; border-radius: 8px; }
         .nav-item.active { color: var(--text); background: rgba(255,255,255,0.05); }
 
-        /* Views */
+        /* Vistas */
         .view { display: none; }
         .view.active { display: block; }
 
-        /* Log History List */
+        /* Lista de Registros */
         .log-list { margin-top: 20px; }
         .log-item-card { display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); padding: 16px; border-radius: 12px; margin-bottom: 12px; border-left: 5px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .log-info { display: flex; flex-direction: column; }
@@ -113,7 +121,7 @@
         .log-meta { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
         .log-amount { font-family: monospace; font-size: 1.15rem; font-weight: 600; }
 
-        /* Comparison Bars */
+        /* Barras de Comparación */
         .compare-row { margin-bottom: 22px; }
         .compare-labels { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 8px; }
         .compare-bar-bg { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; position: relative; }
@@ -126,12 +134,11 @@
         .form-group { margin-bottom: 18px; }
         .form-group label { display: block; font-size: 0.95rem; color: var(--text-muted); font-weight: 500; margin-bottom: 8px; }
 
-        /* Estilos de exportación */
+        /* Exportación */
         .export-btn-container { display: flex; gap: 15px; margin-top: 30px; }
         .export-btn { flex: 1; background: transparent; border: 1px solid var(--text-muted); color: var(--text); border-radius: 10px; height: 48px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
         .export-btn:hover { background: rgba(255,255,255,0.1); }
 
-        /* Configuración de Impresión (PDF) */
         @media print {
             body { background: #ffffff !important; color: #000000 !important; padding-bottom: 0; }
             .bottom-nav, .add-cat-btn, .icon-btn, .export-btn-container, select { display: none !important; }
@@ -146,71 +153,96 @@
 <body>
 
     <div class="container">
-        <!-- Global Header -->
+        <!-- Encabezado Global -->
         <div class="header">
             <div class="header-col">
-                <div class="header-title">Select Month</div>
+                <div class="header-title">Mes</div>
                 <select id="monthSelector" onchange="changeMonth()">
-                    <option value="2026-11">November 2026</option>
-                    <option value="2026-12" selected>December 2026</option>
-                    <option value="2027-01">January 2027</option>
-                    <option value="2027-02">February 2027</option>
+                    <option value="2026-11">Noviembre 2026</option>
+                    <option value="2026-12" selected>Diciembre 2026</option>
+                    <option value="2027-01">Enero 2027</option>
+                    <option value="2027-02">Febrero 2027</option>
                 </select>
             </div>
             <div class="header-col" style="text-align: right; min-width: 140px;">
-                <div class="header-title">Remaining Surplus</div>
+                <div class="header-title">Disponible (Real)</div>
                 <div id="surplusDisplay" class="surplus">Q 0</div>
             </div>
         </div>
 
-        <!-- VIEW 1: PLAN BUDGET -->
+        <!-- VISTA 1: PLANIFICAR PRESUPUESTO -->
         <div id="view-plan" class="view active">
             <div class="section">
-                <div class="item-label-row" style="margin-bottom: 12px;"><span class="item-label" style="font-weight: 600;">Monthly Income</span></div>
+                <div class="item-label-row" style="margin-bottom: 12px;">
+                    <span class="item-label" style="font-weight: 600;">Ingreso Proyectado (Referencia)</span>
+                </div>
                 <div class="input-prefix"><span>Q</span><input type="number" id="incomeInput" value="0"></div>
+                <small style="color: var(--text-muted); display: block; margin-top: 8px;">Este es el monto que planeas recibir. Registra los pagos reales en la pestaña "Ingresos".</small>
             </div>
             <div id="appContainer"></div>
-            <button class="add-cat-btn" onclick="addCategory()">+ Add New Category</button>
+            <button class="add-cat-btn" onclick="addCategory()">+ Agregar Nueva Categoría</button>
         </div>
 
-        <!-- VIEW 2: LOG ACTUAL EXPENSES -->
+        <!-- VISTA 2: INGRESOS -->
+        <div id="view-income" class="view">
+            <div class="section">
+                <div class="section-header">Registrar Nuevo Ingreso</div>
+                <div class="form-group">
+                    <label>Monto</label>
+                    <div class="input-prefix"><span>Q</span><input type="number" id="incomeLogAmount" placeholder="0.00"></div>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <input type="text" id="incomeLogDesc" placeholder="Ej. Quincena, Depósito, Venta...">
+                </div>
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="incomeLogDate">
+                </div>
+                <button class="primary-btn" style="background: var(--green); color: #000;" onclick="saveActualIncome()">Guardar Ingreso</button>
+            </div>
+            <div class="section-header" style="margin-top: 30px;">Ingresos de este mes</div>
+            <div id="incomeHistoryContainer" class="log-list"></div>
+        </div>
+
+        <!-- VISTA 3: REGISTRAR GASTOS -->
         <div id="view-log" class="view">
             <div class="section">
-                <div class="section-header">Record New Expense</div>
+                <div class="section-header">Registrar Nuevo Gasto</div>
                 <div class="form-group">
-                    <label>Amount</label>
+                    <label>Monto</label>
                     <div class="input-prefix"><span>Q</span><input type="number" id="logAmount" placeholder="0.00"></div>
                 </div>
                 <div class="form-group">
-                    <label>Description</label>
-                    <input type="text" id="logDesc" placeholder="e.g., Shell Gas Station">
+                    <label>Descripción</label>
+                    <input type="text" id="logDesc" placeholder="Ej. Gasolinera Shell">
                 </div>
                 <div class="form-group">
-                    <label>Category</label>
+                    <label>Categoría</label>
                     <select id="logCat" onchange="updateLogItems()"></select>
                 </div>
                 <div class="form-group">
-                    <label>Specific Item</label>
+                    <label>Ítem Específico</label>
                     <select id="logItem"></select>
                 </div>
                 <div class="form-group">
-                    <label>Date</label>
+                    <label>Fecha</label>
                     <input type="date" id="logDate">
                 </div>
-                <button class="primary-btn" onclick="saveActualExpense()">Log Expense</button>
+                <button class="primary-btn" onclick="saveActualExpense()">Guardar Gasto</button>
             </div>
-            <div class="section-header" style="margin-top: 30px;">Recent Logs (This Month)</div>
+            <div class="section-header" style="margin-top: 30px;">Gastos Recientes</div>
             <div id="logHistoryContainer" class="log-list"></div>
         </div>
 
-        <!-- VIEW 3: COMPARE (BUDGET VS ACTUAL) -->
+        <!-- VISTA 4: COMPARAR -->
         <div id="view-compare" class="view">
             <div class="section">
-                <div class="section-header">Monthly Overview</div>
+                <div class="section-header">Resumen de Gastos Mensuales</div>
                 <div class="compare-row" style="margin-bottom: 0;">
                     <div class="compare-labels">
-                        <span style="font-weight:600;">Total Spending</span>
-                        <span id="overviewText" class="text-muted">Q0 Actual / Q0 Budgeted</span>
+                        <span style="font-weight:600;">Total Gastado</span>
+                        <span id="overviewText" class="text-muted">Q0 Real / Q0 Plan</span>
                     </div>
                     <div class="compare-bar-bg" style="height: 12px;">
                         <div id="overviewBar" class="compare-bar-fill bg-blue" style="width: 0%;"></div>
@@ -219,36 +251,39 @@
             </div>
             <div id="compareContainer"></div>
             
-            <!-- Botones de Exportación Nuevos -->
+            <!-- Botones de Exportación -->
             <div class="export-btn-container">
                 <button class="export-btn" onclick="exportToCSV()">📄 Excel (CSV)</button>
-                <button class="export-btn" onclick="exportToPDF()">🖨️ Save PDF</button>
+                <button class="export-btn" onclick="exportToPDF()">🖨️ PDF</button>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
+    <!-- Navegación Inferior -->
     <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('plan', this)">🎯 Plan</div>
-        <div class="nav-item" onclick="switchTab('log', this)">📝 Log Actuals</div>
-        <div class="nav-item" onclick="switchTab('compare', this)">📊 Compare</div>
+        <div class="nav-item active" onclick="switchTab('plan', this)">🎯 Planear</div>
+        <div class="nav-item" onclick="switchTab('income', this)">💰 Ingresos</div>
+        <div class="nav-item" onclick="switchTab('log', this)">📝 Gastos</div>
+        <div class="nav-item" onclick="switchTab('compare', this)">📊 Comparar</div>
     </div>
 
     <script>
         const formatMoney = (amount) => amount.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
         let currentMonth = document.getElementById('monthSelector').value;
         document.getElementById('logDate').valueAsDate = new Date();
+        document.getElementById('incomeLogDate').valueAsDate = new Date();
 
         const defaultSchema = [
-            { id: 'cat_debt', title: 'Debt / Savings', color: 'blue', items: [ { id: 'cc_balance', label: 'Credit Card Balance' }, { id: 'installments', label: 'Installments' } ]},
-            { id: 'cat_fixed', title: 'Fixed Obligations', color: 'green', items: [ { id: 'university', label: 'University Mensuality' }, { id: 'house', label: 'House Services' }]},
-            { id: 'cat_trans', title: 'Transportation', color: 'yellow', items: [ { id: 'gasoline', label: 'Gasoline' }, { id: 'parking', label: 'Parking' }]},
-            { id: 'cat_life', title: 'Lifestyle & Food', color: 'red', items: [ { id: 'work_food', label: 'Work Food' }]}
+            { id: 'cat_debt', title: 'Deudas / Ahorros', color: 'blue', items: [ { id: 'cc_balance', label: 'Saldo Tarjeta de Crédito' }, { id: 'installments', label: 'Cuotas' } ]},
+            { id: 'cat_fixed', title: 'Gastos Fijos', color: 'green', items: [ { id: 'university', label: 'Mensualidad Universidad' }, { id: 'house', label: 'Servicios de Casa' }]},
+            { id: 'cat_trans', title: 'Transporte', color: 'yellow', items: [ { id: 'gasoline', label: 'Gasolina' }, { id: 'parking', label: 'Parqueo' }]},
+            { id: 'cat_life', title: 'Estilo de Vida', color: 'red', items: [ { id: 'work_food', label: 'Comida del Trabajo' }]}
         ];
 
         let schema = JSON.parse(localStorage.getItem('budget_schema')) || defaultSchema;
         let allValues = JSON.parse(localStorage.getItem('budget_values')) || { '2026-12': { income: 11000, gasoline: 1500, work_food: 1114 } };
         let allActuals = JSON.parse(localStorage.getItem('budget_actuals')) || {}; 
+        let allIncomes = JSON.parse(localStorage.getItem('budget_incomes')) || {}; // NUEVO: Datos de ingresos
 
         // ----------- NAVEGACIÓN -----------
         function switchTab(tabName, el) {
@@ -256,15 +291,25 @@
             document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
             document.getElementById(`view-${tabName}`).classList.add('active');
             el.classList.add('active');
+            
             if(tabName === 'plan') renderPlanTab();
-            if(tabName === 'log') renderLogTab();
+            if(tabName === 'income') {
+                document.getElementById('incomeLogDate').valueAsDate = new Date();
+                renderIncomeHistory();
+            }
+            if(tabName === 'log') {
+                document.getElementById('logDate').valueAsDate = new Date();
+                renderLogTab();
+            }
             if(tabName === 'compare') renderCompareTab();
+            
             updateGlobalHeader();
         }
 
         function changeMonth() {
             currentMonth = document.getElementById('monthSelector').value;
             renderPlanTab();
+            renderIncomeHistory();
             renderLogTab();
             renderCompareTab();
             updateGlobalHeader();
@@ -281,14 +326,20 @@
             return allActuals[currentMonth];
         }
 
+        function getIncomesForMonth() {
+            if (!allIncomes[currentMonth]) allIncomes[currentMonth] = [];
+            return allIncomes[currentMonth];
+        }
+
         function saveAll() {
             localStorage.setItem('budget_schema', JSON.stringify(schema));
             localStorage.setItem('budget_values', JSON.stringify(allValues));
             localStorage.setItem('budget_actuals', JSON.stringify(allActuals));
+            localStorage.setItem('budget_incomes', JSON.stringify(allIncomes));
             updateGlobalHeader();
         }
 
-        // ----------- PLAN -----------
+        // ----------- PESTAÑA: PLANIFICAR -----------
         function renderPlanTab() {
             const container = document.getElementById('appContainer');
             let html = '';
@@ -323,11 +374,12 @@
                 });
                 html += `</div>
                         <div style="text-align:center; margin-top:20px;">
-                            <button class="icon-btn" style="width:auto; height:auto; border:1px solid #444; border-radius:8px; padding:8px 16px; font-size:0.95rem; margin:0 auto;" onclick="addItem('${cat.id}')">+ Add Item</button>
+                            <button class="icon-btn" style="width:auto; height:auto; border:1px solid #444; border-radius:8px; padding:8px 16px; font-size:0.95rem; margin:0 auto;" onclick="addItem('${cat.id}')">+ Agregar Ítem</button>
                         </div>
                 </div>`;
             });
             container.innerHTML = html;
+            
             document.getElementById('incomeInput').value = getBudgetVal('income');
             
             document.getElementById('incomeInput').addEventListener('input', (e) => {
@@ -363,10 +415,57 @@
             });
         }
 
-        // ----------- LOGS -----------
+        // ----------- PESTAÑA: INGRESOS -----------
+        function saveActualIncome() {
+            const amount = parseFloat(document.getElementById('incomeLogAmount').value);
+            const desc = document.getElementById('incomeLogDesc').value;
+            const date = document.getElementById('incomeLogDate').value;
+
+            if(!amount) return alert("Por favor ingresa un monto válido.");
+
+            const newInc = { id: 'inc_' + Date.now(), amount, desc: desc || 'Ingreso', date };
+            getIncomesForMonth().unshift(newInc);
+            saveAll();
+            
+            document.getElementById('incomeLogAmount').value = '';
+            document.getElementById('incomeLogDesc').value = '';
+            renderIncomeHistory();
+        }
+
+        function renderIncomeHistory() {
+            const container = document.getElementById('incomeHistoryContainer');
+            const incomes = getIncomesForMonth();
+            if(incomes.length === 0) { 
+                container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding: 20px;">No hay ingresos registrados este mes.</div>'; 
+                return; 
+            }
+            let html = '';
+            incomes.forEach(inc => {
+                html += `
+                <div class="log-item-card" style="border-left-color: var(--green)">
+                    <div class="log-info">
+                        <div class="log-desc">${inc.desc}</div>
+                        <div class="log-meta">${inc.date}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="log-amount" style="color: var(--green)">+ Q ${formatMoney(inc.amount)}</div>
+                        <button class="icon-btn" onclick="deleteIncome('${inc.id}')">×</button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function deleteIncome(id) {
+            allIncomes[currentMonth] = getIncomesForMonth().filter(i => i.id !== id);
+            saveAll();
+            renderIncomeHistory();
+        }
+
+        // ----------- PESTAÑA: GASTOS -----------
         function renderLogTab() {
             const catSelect = document.getElementById('logCat');
-            catSelect.innerHTML = '<option value="">-- Select Category --</option>';
+            catSelect.innerHTML = '<option value="">-- Seleccionar Categoría --</option>';
             schema.forEach(cat => { catSelect.innerHTML += `<option value="${cat.id}">${cat.title}</option>`; });
             updateLogItems();
             renderLogHistory();
@@ -375,7 +474,7 @@
         function updateLogItems() {
             const catId = document.getElementById('logCat').value;
             const itemSelect = document.getElementById('logItem');
-            itemSelect.innerHTML = '<option value="">-- Select Item --</option>';
+            itemSelect.innerHTML = '<option value="">-- Seleccionar Ítem --</option>';
             const cat = schema.find(c => c.id === catId);
             if(cat) { cat.items.forEach(i => { itemSelect.innerHTML += `<option value="${i.id}">${i.label}</option>`; }); }
         }
@@ -387,10 +486,10 @@
             const itemId = document.getElementById('logItem').value;
             const date = document.getElementById('logDate').value;
 
-            if(!amount || !catId || !itemId) return alert("Please fill amount, category, and item.");
+            if(!amount || !catId || !itemId) return alert("Por favor completa monto, categoría e ítem.");
 
             const cat = schema.find(c => c.id === catId);
-            const newTx = { id: 'tx_' + Date.now(), amount, desc: desc || 'Untitled', catId, itemId, date, color: cat.color };
+            const newTx = { id: 'tx_' + Date.now(), amount, desc: desc || 'Sin título', catId, itemId, date, color: cat.color };
             getActualsForMonth().unshift(newTx);
             saveAll();
             document.getElementById('logAmount').value = '';
@@ -401,12 +500,12 @@
         function renderLogHistory() {
             const container = document.getElementById('logHistoryContainer');
             const actuals = getActualsForMonth();
-            if(actuals.length === 0) { container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding: 20px;">No expenses logged this month yet.</div>'; return; }
+            if(actuals.length === 0) { container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding: 20px;">No hay gastos registrados este mes.</div>'; return; }
             let html = '';
             actuals.forEach(tx => {
                 const cat = schema.find(c => c.id === tx.catId);
                 const item = cat ? cat.items.find(i => i.id === tx.itemId) : null;
-                const itemLabel = item ? item.label : 'Deleted Item';
+                const itemLabel = item ? item.label : 'Ítem Eliminado';
                 html += `
                 <div class="log-item-card" style="border-left-color: var(--${tx.color})">
                     <div class="log-info">
@@ -428,13 +527,14 @@
             renderLogHistory();
         }
 
-        // ----------- COMPARACIÓN -----------
+        // ----------- COMPARACIÓN Y ENCABEZADO -----------
         function renderCompareTab() {
             const container = document.getElementById('compareContainer');
             const actuals = getActualsForMonth();
             let totalBudgeted = 0;
             let totalActual = 0;
             let html = '';
+            
             schema.forEach(cat => {
                 let catBudget = 0;
                 let catActual = 0;
@@ -470,7 +570,8 @@
                 }
             });
             container.innerHTML = html;
-            document.getElementById('overviewText').innerText = `Q ${formatMoney(totalActual)} Actual / Q ${formatMoney(totalBudgeted)} Budgeted`;
+            
+            document.getElementById('overviewText').innerText = `Q ${formatMoney(totalActual)} Real / Q ${formatMoney(totalBudgeted)} Plan`;
             const overPct = totalBudgeted > 0 ? Math.min((totalActual / totalBudgeted) * 100, 100) : 0;
             const bar = document.getElementById('overviewBar');
             bar.style.width = `${overPct}%`;
@@ -478,10 +579,17 @@
         }
 
         function updateGlobalHeader() {
-            const income = getBudgetVal('income');
+            // Ingresos Totales Reales
+            const incomes = getIncomesForMonth();
+            const totalActualIncomes = incomes.reduce((sum, inc) => sum + inc.amount, 0);
+            
+            // Gastos Totales Reales
             const actuals = getActualsForMonth();
             const totalActualExpenses = actuals.reduce((sum, tx) => sum + tx.amount, 0);
-            const surplus = income - totalActualExpenses;
+            
+            // Disponible = Ingresos Reales - Gastos Reales
+            const surplus = totalActualIncomes - totalActualExpenses;
+            
             const el = document.getElementById('surplusDisplay');
             el.innerText = `Q ${formatMoney(surplus)}`;
             el.style.color = surplus >= 0 ? 'var(--green)' : 'var(--red)';
@@ -489,29 +597,32 @@
 
         // ----------- EXPORTACIÓN -----------
         function exportToCSV() {
-            let csvContent = "Category,Item,Type,Amount (Q),Date,Description\n";
-            const actuals = getActualsForMonth();
+            let csvContent = "Categoría,Ítem,Tipo,Monto (Q),Fecha,Descripción\n";
             
+            // 1. Ingresos Reales
+            const incomes = getIncomesForMonth();
+            incomes.forEach(inc => {
+                csvContent += `"Ingresos","Ingreso","Ingreso Real",${inc.amount},${inc.date},"${inc.desc}"\n`;
+            });
+
+            // 2. Presupuestos y Gastos Reales
+            const actuals = getActualsForMonth();
             schema.forEach(cat => {
                 cat.items.forEach(item => {
                     const budgeted = getBudgetVal(item.id);
-                    // Agregar fila del límite presupuestado
-                    csvContent += `"${cat.title}","${item.label}",Budget Limit,${budgeted},,\n`;
+                    csvContent += `"${cat.title}","${item.label}","Límite Presupuestado",${budgeted},,\n`;
                     
-                    // Agregar filas de cada transacción individual
                     const itemActuals = actuals.filter(tx => tx.itemId === item.id);
                     itemActuals.forEach(tx => {
-                        csvContent += `"${cat.title}","${item.label}",Actual Spent,${tx.amount},${tx.date},"${tx.desc}"\n`;
+                        csvContent += `"${cat.title}","${item.label}","Gasto Real",${tx.amount},${tx.date},"${tx.desc}"\n`;
                     });
                 });
             });
 
-            // Forzar descarga del archivo
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Budget_Export_${currentMonth}.csv`);
+            link.href = URL.createObjectURL(blob);
+            link.download = `Presupuesto_${currentMonth}.csv`;
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -519,13 +630,12 @@
         }
 
         function exportToPDF() {
-            // El navegador móvil/de escritorio maneja la impresión a PDF nativamente
             window.print();
         }
 
-        // ----------- EDICIÓN -----------
+        // ----------- EDICIÓN DE CATEGORÍAS -----------
         function addCategory() {
-            const title = prompt("New category name:");
+            const title = prompt("Nombre de la nueva categoría:");
             if (!title) return;
             const color = prompt("Color (blue, green, yellow, red, purple, orange):", "purple") || "purple";
             schema.push({ id: 'cat_' + Date.now(), title, color, items: [] });
@@ -534,7 +644,7 @@
         }
 
         function addItem(catId) {
-            const label = prompt("Expense item name:");
+            const label = prompt("Nombre del nuevo ítem de gasto:");
             if (!label) return;
             const cat = schema.find(c => c.id === catId);
             cat.items.push({ id: 'item_' + Date.now(), label });
@@ -543,11 +653,11 @@
         }
 
         function deleteCategory(id) {
-            if(confirm("Delete entire category?")) { schema = schema.filter(c => c.id !== id); saveAll(); renderPlanTab(); }
+            if(confirm("¿Eliminar categoría completa?")) { schema = schema.filter(c => c.id !== id); saveAll(); renderPlanTab(); }
         }
 
         function deleteItem(catId, itemId) {
-            if(confirm("Delete item?")) {
+            if(confirm("¿Eliminar este ítem?")) {
                 const cat = schema.find(c => c.id === catId);
                 cat.items = cat.items.filter(i => i.id !== itemId);
                 saveAll();
@@ -555,7 +665,7 @@
             }
         }
 
-        // INICIALIZAR
+        // INICIALIZACIÓN
         renderPlanTab();
         updateGlobalHeader();
     </script>
