@@ -1,19 +1,43 @@
-const cacheName = 'gestion-riesgos-shell-v5';
-const assets = ['./index.html', './style.css?v=5', './app.js?v=5', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
-self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(assets)));
+const CACHE_NAME = 'presupuesto-app-v3';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json'
+  // Si agregas íconos, puedes sumar las rutas aquí: './icon-192.png', './icon-512.png'
+];
+
+// Instalación del Service Worker y guardado en caché
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('Archivos guardados en caché correctamente');
+      return cache.addAll(ASSETS);
+    })
+  );
 });
-self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key =>
-    key.startsWith('gestion-riesgos-shell-') && key !== cacheName).map(key => caches.delete(key)))));
+
+// Intercepción de peticiones para que funcione offline
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((response) => {
+      // Devuelve la versión guardada en caché si existe, de lo contrario busca en la red
+      return response || fetch(e.request);
+    })
+  );
 });
-self.addEventListener('fetch', event => {
-  const { request } = event;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
-  if (new URL(request.url).pathname.endsWith('/supabase-config.js')) return;
-  if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('./index.html', { cacheName })));
-    return;
-  }
-  event.respondWith(caches.match(request, { cacheName }).then(response => response || fetch(request)));
+
+// Limpieza de cachés antiguas cuando actualizas la versión (CACHE_NAME)
+self.addEventListener('activate', (e) => {
+  const cacheWhitelist = [CACHE_NAME];
+  e.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
 });
