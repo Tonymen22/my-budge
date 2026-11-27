@@ -5,27 +5,41 @@
     const accountPanel = document.getElementById('accountPanel');
     const login = document.getElementById('loginForm');
     const signOut = document.getElementById('signOut');
-    const retry = document.getElementById('retrySync');
-    const reload = document.getElementById('reloadCloud');
-    const status = document.getElementById('accountStatus');
+    const retryAccount = document.getElementById('retryAccount');
+    const retry = document.getElementById('syncRetry');
+    const reload = document.getElementById('syncReload');
+    const accountStatus = document.getElementById('accountStatus');
+    const syncStatus = document.getElementById('syncStatus');
+    const syncPanel = document.getElementById('syncPanel');
+    const profileStatus = document.getElementById('profileStatus');
+    const profileButton = document.getElementById('profileButton');
     const app = document.getElementById('budgetApp');
     const nav = document.getElementById('budgetNav');
     let client;
     let account;
+    let sessionToVerify;
+    let verification = 0;
 
     accountPanel.hidden = false;
     showBudget(false);
-    status.textContent = 'Conectando con Supabase…';
+    accountStatus.textContent = 'Conectando con Supabase…';
 
     function showBudget(visible) {
         app.hidden = !visible;
         nav.hidden = !visible;
+        profileButton.hidden = !visible;
+        accountPanel.hidden = visible;
     }
 
     function showStatus(message, { canRetry = false, conflict = false } = {}) {
-        status.textContent = message;
+        accountStatus.textContent = message;
+        syncStatus.textContent = message;
+        syncStatus.dataset.state = message === 'Presupuesto sincronizado' ? 'ok' : 'pending';
+        retryAccount.hidden = !canRetry;
         retry.hidden = !canRetry;
         reload.hidden = !conflict;
+        syncPanel.hidden = !message;
+        syncPanel.classList.toggle('warning', canRetry || conflict);
     }
 
     function saveDraft(state) {
@@ -77,10 +91,10 @@
             } else {
                 showStatus(data ? 'Presupuesto sincronizado' : 'Cuenta lista. Puedes importar un respaldo en Plan.');
             }
-        } catch (error) {
+        } catch {
             if (account !== state) return;
             signOut.disabled = false;
-            showStatus(`No se pudo cargar el presupuesto. ${error.message}`, { canRetry: true });
+            showStatus('No se pudo cargar tu presupuesto. Verifica la conexión y vuelve a intentar.', { canRetry: true });
         }
     }
 
@@ -142,10 +156,36 @@
         state.timer = setTimeout(() => { if (account === state) sync(state); }, 350);
     };
 
+    function showProfile(user) {
+        const email = user.email || 'Sin correo registrado';
+        const metadata = user.user_metadata || {};
+        const name = [metadata.display_name, metadata.full_name, metadata.name]
+            .find(value => typeof value === 'string' && value.trim())?.trim() || '';
+        const initials = (name || user.email || 'U').split(/\s+/).slice(0, 2)
+            .map(part => [...part][0]).join('').toLocaleUpperCase('es-GT');
+        const formatDate = value => value && Number.isFinite(Date.parse(value))
+            ? new Intl.DateTimeFormat('es-GT', {
+                timeZone: budgetTimeZone, dateStyle: 'medium', timeStyle: 'short',
+            }).format(new Date(value))
+            : 'Sin registro';
+        for (const [id, text] of Object.entries({
+            accountAvatar: initials,
+            accountName: name || email,
+            profileAvatar: initials,
+            profileName: name || 'Mi cuenta',
+            profileEmail: email,
+            profileVerified: user.email_confirmed_at ? 'Verificado' : 'Pendiente de verificar',
+            profileCreated: formatDate(user.created_at),
+            profileLastSignIn: formatDate(user.last_sign_in_at),
+        })) document.getElementById(id).textContent = text;
+    }
+
     async function selectAccount(user) {
+        if (user) showProfile(user);
         if (user && user.id === account?.id) return;
         budgetSession++;
         if (account) clearTimeout(account.timer);
+        profileStatus.hidden = true;
         account = user ? {
             id: user.id, key: `budget-draft:${config.url}:${user.id}`,
             ready: false, revision: null, pending: null, attempt: null,
@@ -155,11 +195,47 @@
             document.getElementById(id).value = '';
         }
         setBudget(emptyBudget());
+        useCurrentMonth();
+        switchTab('home');
         login.hidden = Boolean(user);
         signOut.hidden = !user;
         signOut.disabled = Boolean(user);
         if (account) await loadAccount(account);
         else showStatus('Inicia sesión para acceder a tu presupuesto.');
+    }
+
+    async function verifySession(session, event) {
+        if (!session) {
+            verification++;
+            sessionToVerify = null;
+            await selectAccount(null);
+            return;
+        }
+        if (session.user?.id === account?.id && event !== 'USER_UPDATED') return;
+        const request = ++verification;
+        sessionToVerify = session;
+        if (session.user?.id !== account?.id) {
+            if (account) await selectAccount(null);
+            login.hidden = true;
+            showStatus('Verificando tu sesión…');
+        }
+        try {
+            const { data, error } = await client.auth.getUser(session.access_token);
+            if (request !== verification) return;
+            if (error || !data.user) throw error || new Error('Sesión inválida');
+            sessionToVerify = null;
+            await selectAccount(data.user);
+        } catch (error) {
+            if (request !== verification) return;
+            if ([400, 401, 403, 422].includes(error?.status)) {
+                verification++;
+                sessionToVerify = null;
+                await selectAccount(null);
+                if (request + 1 === verification) showStatus('Tu sesión expiró. Inicia sesión de nuevo.');
+            } else {
+                showStatus('No se pudo verificar tu sesión. Revisa la conexión e inténtalo de nuevo.', { canRetry: true });
+            }
+        }
     }
 
     login.addEventListener('submit', async event => {
@@ -168,12 +244,11 @@
         button.disabled = true;
         showStatus('Iniciando sesión…');
         try {
-            const { data, error } = await client.auth.signInWithPassword({
+            const { error } = await client.auth.signInWithPassword({
                 email: login.elements.email.value.trim(), password: login.elements.password.value,
             });
             if (error) throw error;
             login.reset();
-            await selectAccount(data.user);
         } catch {
             showStatus('No se pudo iniciar sesión. Verifica tus credenciales y tu conexión.');
         } finally {
@@ -183,6 +258,10 @@
 
     signOut.addEventListener('click', async () => {
         if (account?.pending || account?.saving) {
+            profileStatus.hidden = false;
+            profileStatus.textContent = account.conflict
+                ? 'Resuelve los cambios pendientes antes de cerrar sesión.'
+                : 'Espera a que se sincronicen los cambios y vuelve a pulsar Cerrar sesión.';
             if (!account.conflict) sync(account);
             return;
         }
@@ -190,20 +269,25 @@
         try {
             const { error } = await client.auth.signOut({ scope: 'local' });
             if (error) throw error;
-            await selectAccount(null);
+            await verifySession(null);
         } catch {
-            showStatus('No se pudo cerrar sesión. Intenta de nuevo.');
+            profileStatus.hidden = false;
+            profileStatus.textContent = 'No se pudo cerrar sesión. Intenta de nuevo.';
             signOut.disabled = false;
         }
     });
 
+    retryAccount.addEventListener('click', () => {
+        if (sessionToVerify) verifySession(sessionToVerify);
+        else if (account) loadAccount(account);
+    });
     retry.addEventListener('click', () => {
         if (!account) return;
         if (account.ready) sync(account);
         else loadAccount(account);
     });
     reload.addEventListener('click', () => {
-        if (confirm('¿Descartar los cambios de esta pestaña y cargar la versión de la nube?')) loadAccount(account, true);
+        if (account && confirm('¿Descartar los cambios de esta pestaña y cargar la versión de la nube?')) loadAccount(account, true);
     });
     window.addEventListener('beforeunload', event => {
         if (!account?.pending) return;
@@ -212,16 +296,20 @@
     });
 
     const sdk = document.createElement('script');
-    sdk.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    sdk.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js';
+    sdk.integrity = 'sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ';
+    sdk.crossOrigin = 'anonymous';
     sdk.onload = () => {
         try {
             const url = new URL(config.url);
-            if (url.protocol !== 'https:' || !config.publishableKey.startsWith('sb_publishable_')) {
+            if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname)
+                || !config.publishableKey?.startsWith('sb_publishable_')) {
                 throw new Error('Configuración inválida');
             }
             client = window.supabase.createClient(config.url, config.publishableKey);
+            login.querySelector('button').disabled = false;
             client.auth.onAuthStateChange((event, session) => {
-                setTimeout(() => selectAccount(session?.user ?? null), 0);
+                setTimeout(() => verifySession(session, event), 0);
             });
         } catch {
             showStatus('Revisa la URL HTTPS y la clave publicable en supabase-config.js.');

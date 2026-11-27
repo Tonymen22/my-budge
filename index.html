@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#f3f6fc">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,14 +15,6 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .catch(err => console.warn('Error en Service Worker', err));
-            });
-        }
-    </script>
 
     <style>
         :root {
@@ -155,45 +150,73 @@
 </head>
 <body>
 
-    <div class="container">
-        <div class="masthead">
-            <div class="brand">
-                <img src="./icon-192.png" alt="" width="40" height="40">
-                <h1>Mi presupuesto</h1>
-            </div>
-            <span>GTQ</span>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <button type="button" class="brand" id="brandHome" aria-label="Ir al resumen">
+                <img src="./icon-192.png" alt="" width="38" height="38">
+                <span>Mi presupuesto</span>
+            </button>
+            <button type="button" id="profileButton" class="profile-button" hidden>
+                <span id="accountAvatar" class="avatar" aria-hidden="true"></span>
+                <span id="accountName"></span>
+                <span class="visually-hidden"> · Ver perfil</span>
+            </button>
         </div>
+    </header>
+    <div class="container">
         <section id="accountPanel" class="section account-panel" aria-label="Cuenta" hidden>
+            <h1>Tu presupuesto personal</h1>
             <p id="accountStatus" role="status"></p>
             <form id="loginForm" hidden>
                 <label for="email">Correo electrónico</label>
                 <input id="email" name="email" type="email" autocomplete="username" required>
                 <label for="password">Contraseña</label>
                 <input id="password" name="password" type="password" autocomplete="current-password" required>
-                <button class="primary-btn">Iniciar sesión</button>
+                <button class="primary-btn" disabled>Iniciar sesión</button>
             </form>
-            <button id="retrySync" class="secondary-btn" hidden>Reintentar</button>
-            <button id="reloadCloud" class="secondary-btn" hidden>Cargar versión de la nube</button>
-            <button id="signOut" class="secondary-btn" hidden>Cerrar sesión</button>
+            <button id="retryAccount" class="secondary-btn" hidden>Reintentar</button>
         </section>
+        <nav id="budgetNav" class="bottom-nav" aria-label="Presupuesto">
+            <button id="nav-home" class="nav-item active" type="button" aria-current="page" data-tab="home"><span aria-hidden="true">▦</span>Resumen</button>
+            <button id="nav-plan" class="nav-item" type="button" data-tab="plan"><span aria-hidden="true">▤</span>Plan</button>
+            <button id="nav-income" class="nav-item" type="button" data-tab="income"><span aria-hidden="true">↙</span>Ingresos</button>
+            <button id="nav-log" class="nav-item" type="button" data-tab="log"><span aria-hidden="true">↗</span>Gastos</button>
+            <button id="nav-compare" class="nav-item" type="button" data-tab="compare"><span aria-hidden="true">◫</span>Comparar</button>
+        </nav>
         <main id="budgetApp">
-        <div class="header">
-            <div class="header-col">
-                <label for="monthSelector" class="header-title">Mes del presupuesto</label>
-                <input type="month" id="monthSelector" onchange="changeMonth()" required>
-            </div>
-            <div class="header-col balance">
-                <span class="header-title">Disponible del mes</span>
-                <div id="surplusDisplay" class="surplus">Q 0.00</div>
-            </div>
+        <div id="syncPanel" class="sync-panel" hidden>
+            <p id="syncStatus" role="status"></p>
+            <button id="syncRetry" type="button" class="secondary-btn" hidden>Reintentar</button>
+            <button id="syncReload" type="button" class="secondary-btn" hidden>Cargar versión de la nube</button>
         </div>
-        <section id="view-home" class="view active" aria-label="Resumen mensual">
-            <div class="summary-grid">
-                <div class="summary-card"><span>Ingresos registrados</span><strong id="summaryIncome">Q 0.00</strong></div>
-                <div class="summary-card"><span>Gastos registrados</span><strong id="summaryExpense">Q 0.00</strong></div>
-                <div class="summary-card"><span>Presupuesto de gastos</span><strong id="summaryLimit">Q 0.00</strong></div>
+        <header id="monthToolbar" class="month-toolbar">
+            <h1 id="viewTitle">Resumen mensual</h1>
+            <div class="month-controls">
+                <div class="month-stepper">
+                    <button type="button" data-action="previousMonth" aria-label="Mes anterior">‹</button>
+                    <label class="visually-hidden" for="monthSelector">Mes del presupuesto</label>
+                    <input type="month" id="monthSelector" placeholder="AAAA-MM" autocomplete="off" required>
+                    <button type="button" data-action="nextMonth" aria-label="Mes siguiente">›</button>
+                </div>
+                <button type="button" id="todayButton" class="secondary-btn" data-action="currentMonth" hidden>Mes actual</button>
             </div>
-            <button class="primary-btn quick-expense" type="button" onclick="openExpense()">+ Registrar gasto</button>
+        </header>
+        <section id="view-home" class="view active" aria-label="Resumen mensual">
+            <div class="balance-card">
+                <div class="balance-copy">
+                    <span>Disponible del mes</span>
+                    <strong id="surplusDisplay" class="surplus">Q 0.00</strong>
+                    <button class="quick-expense" type="button" data-action="openExpense"><span aria-hidden="true">+</span> Registrar gasto</button>
+                </div>
+                <div id="budgetGauge" class="budget-gauge">
+                    <div class="gauge-value"><strong id="budgetPercent"></strong><span id="budgetGaugeLabel"></span></div>
+                </div>
+            </div>
+            <div class="summary-grid">
+                <div class="summary-card income"><b aria-hidden="true">↙</b><div><span>Ingresos registrados</span><strong id="summaryIncome">Q 0.00</strong></div></div>
+                <div class="summary-card expense"><b aria-hidden="true">↗</b><div><span>Gastos registrados</span><strong id="summaryExpense">Q 0.00</strong></div></div>
+                <div class="summary-card limit"><b aria-hidden="true">▤</b><div><span>Presupuesto de gastos</span><strong id="summaryLimit">Q 0.00</strong></div></div>
+            </div>
             <section class="section category-panel">
                 <h2>Consumo por categoría</h2>
                 <div id="categorySummary"></div>
@@ -208,12 +231,12 @@
                 <small style="color: var(--text-muted); display: block; margin-top: 8px;">Este es el monto que planeas recibir. Registra los pagos reales en la pestaña "Ingresos".</small>
             </div>
             <div id="appContainer"></div>
-            <button class="add-cat-btn" onclick="addCategory()">+ Agregar Nueva Categoría</button>
+            <button class="add-cat-btn" data-action="addCategory">+ Agregar Nueva Categoría</button>
             <!-- Botones de Respaldo -->
 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-    <button class="export-btn" style="flex: 1; border-color: var(--blue); color: var(--blue);" onclick="exportBackup()">⬇️ Respaldar Datos</button>
-    <button class="export-btn" style="flex: 1; border-color: var(--yellow); color: var(--yellow);" onclick="document.getElementById('importFile').click()">⬆️ Importar Datos</button>
-    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importBackup(event)">
+    <button class="export-btn" style="flex: 1; border-color: var(--blue); color: var(--blue);" data-action="exportBackup">⬇️ Respaldar Datos</button>
+    <button class="export-btn" style="flex: 1; border-color: var(--yellow); color: var(--yellow);" data-action="chooseBackup">⬆️ Importar Datos</button>
+    <input type="file" id="importFile" style="display: none;" accept=".json">
 </div>
         </section>
 
@@ -233,7 +256,7 @@
                     <label for="incomeLogDate">Fecha</label>
                     <input type="date" id="incomeLogDate">
                 </div>
-                <button class="primary-btn" style="background: var(--green); color: #000;" onclick="saveActualIncome()">Guardar Ingreso</button>
+                <button class="primary-btn income-button" data-action="saveActualIncome">Guardar Ingreso</button>
             </div>
             <div class="section-header" style="margin-top: 30px;">Ingresos de este mes</div>
             <div id="incomeHistoryContainer" class="log-list"></div>
@@ -253,7 +276,7 @@
                 </div>
                 <div class="form-group">
                     <label for="logCat">Categoría</label>
-                    <select id="logCat" onchange="updateLogItems()"></select>
+                    <select id="logCat"></select>
                 </div>
                 <div class="form-group">
                     <label for="logItem">Ítem Específico</label>
@@ -263,7 +286,7 @@
                     <label for="logDate">Fecha</label>
                     <input type="date" id="logDate">
                 </div>
-                <button class="primary-btn" onclick="saveActualExpense()">Guardar Gasto</button>
+                <button class="primary-btn" data-action="saveActualExpense">Guardar Gasto</button>
             </div>
             <div class="section-header" style="margin-top: 30px;">Gastos Recientes</div>
             <div id="logHistoryContainer" class="log-list"></div>
@@ -287,19 +310,29 @@
             
             <!-- Botones de Exportación -->
             <div class="export-btn-container">
-                <button class="export-btn" onclick="exportToCSV()">📄 Excel (CSV)</button>
-                <button class="export-btn" onclick="exportToPDF()">🖨️ PDF</button>
+                <button class="export-btn" data-action="exportToCSV">📄 Excel (CSV)</button>
+                <button class="export-btn" data-action="exportToPDF">🖨️ PDF</button>
             </div>
         </div>
+        <section id="view-profile" class="view" aria-labelledby="profileTitle">
+            <h1 id="profileTitle" tabindex="-1">Mi perfil</h1>
+            <div class="section profile-card">
+                <div class="profile-heading">
+                    <span id="profileAvatar" class="avatar" aria-hidden="true"></span>
+                    <div><h2 id="profileName"></h2><p id="profileEmail"></p></div>
+                </div>
+                <dl>
+                    <div><dt>Sesión</dt><dd>Activa en este dispositivo</dd></div>
+                    <div><dt>Correo</dt><dd id="profileVerified"></dd></div>
+                    <div><dt>Cuenta creada</dt><dd id="profileCreated"></dd></div>
+                    <div><dt>Último inicio de sesión</dt><dd id="profileLastSignIn"></dd></div>
+                </dl>
+                <button id="signOut" type="button" class="secondary-btn">Cerrar sesión</button>
+                <p id="profileStatus" role="status" hidden></p>
+            </div>
+        </section>
         </main>
     </div>
-    <nav id="budgetNav" class="bottom-nav" aria-label="Presupuesto">
-        <button id="nav-home" class="nav-item active" type="button" aria-current="page" onclick="switchTab('home', this)">Resumen</button>
-        <button id="nav-plan" class="nav-item" type="button" onclick="switchTab('plan', this)">Plan</button>
-        <button id="nav-income" class="nav-item" type="button" onclick="switchTab('income', this)">Ingresos</button>
-        <button id="nav-log" class="nav-item" type="button" onclick="switchTab('log', this)">Gastos</button>
-        <button id="nav-compare" class="nav-item" type="button" onclick="switchTab('compare', this)">Comparar</button>
-    </nav>
 
     <script src="supabase-config.js"></script>
     <script src="budget-data.js"></script>

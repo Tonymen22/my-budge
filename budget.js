@@ -1,12 +1,46 @@
 const formatMoney = amount => amount.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-function localDate() {
-    const now = new Date();
-    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const budgetTimeZone = 'America/Guatemala';
+const budgetCalendar = new Intl.DateTimeFormat('en-CA', {
+    timeZone: budgetTimeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+});
+
+function localDate(date = new Date()) {
+    const parts = budgetCalendar.formatToParts(date);
+    const [year, month, day] = ['year', 'month', 'day'].map(type => parts.find(part => part.type === type).value);
+    return `${year}-${month}-${day}`;
 }
 
 const monthSelector = document.getElementById('monthSelector');
-let currentMonth = localDate().slice(0, 7);
+const todayButton = document.getElementById('todayButton');
+let calendarMonth = localDate().slice(0, 7);
+let currentMonth = calendarMonth;
 monthSelector.value = currentMonth;
+
+function chooseMonth(month) {
+    monthSelector.value = month;
+    changeMonth();
+}
+
+function stepMonth(delta) {
+    const date = new Date(`${currentMonth}-01T00:00:00Z`);
+    date.setUTCMonth(date.getUTCMonth() + delta);
+    const month = date.toISOString().slice(0, 7);
+    if (monthPattern.test(month)) chooseMonth(month);
+}
+
+function useCurrentMonth() {
+    calendarMonth = localDate().slice(0, 7);
+    chooseMonth(calendarMonth);
+}
+
+function checkCalendar() {
+    const month = localDate().slice(0, 7);
+    if (calendarMonth === month) return;
+    const followingCurrentMonth = currentMonth === calendarMonth;
+    calendarMonth = month;
+    if (followingCurrentMonth) chooseMonth(calendarMonth);
+    else todayButton.hidden = currentMonth === calendarMonth;
+}
 
 const defaultSchema = [
     { id: 'cat_debt', title: 'Deudas / Ahorros', color: 'blue', items: [ { id: 'cc_balance', label: 'Saldo Tarjeta de Crédito' }, { id: 'installments', label: 'Cuotas' } ]},
@@ -45,15 +79,29 @@ function monthDate() {
 }
 
 // ----------- NAVEGACIÓN -----------
-function switchTab(tabName, el) {
+const viewTitles = {
+    home: 'Resumen mensual', plan: 'Plan del mes', income: 'Ingresos', log: 'Gastos', compare: 'Comparar',
+};
+
+function switchTab(tabName, el = document.getElementById(`nav-${tabName}`)) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(v => {
         v.classList.remove('active');
         v.removeAttribute('aria-current');
     });
     document.getElementById(`view-${tabName}`).classList.add('active');
-    el.classList.add('active');
-    el.setAttribute('aria-current', 'page');
+    el?.classList.add('active');
+    el?.setAttribute('aria-current', 'page');
+    const profile = tabName === 'profile';
+    document.getElementById('monthToolbar').hidden = profile;
+    const profileButton = document.getElementById('profileButton');
+    profileButton.toggleAttribute('aria-current', profile);
+    if (profile) {
+        profileButton.setAttribute('aria-current', 'page');
+        document.getElementById('profileTitle').focus();
+    } else {
+        document.getElementById('viewTitle').textContent = viewTitles[tabName];
+    }
 
     if(tabName === 'plan') renderPlanTab();
     if(tabName === 'income') {
@@ -72,6 +120,7 @@ function switchTab(tabName, el) {
 function changeMonth() {
     if (!monthPattern.test(monthSelector.value)) monthSelector.value = currentMonth;
     currentMonth = monthSelector.value;
+    todayButton.hidden = currentMonth === calendarMonth;
     document.getElementById('incomeLogDate').value = monthDate();
     document.getElementById('logDate').value = monthDate();
     renderPlanTab();
@@ -121,8 +170,8 @@ function renderPlanTab() {
                 <div style="display: flex; align-items: center;"><span class="dot bg-${budgetColor(cat.color)}"></span> ${escapeHtml(cat.title)}</div>
                 <div style="display:flex; align-items:center; gap:5px;">
                     <div id="total-${cat.id}" class="total-amount" style="margin-right: 10px;">Q 0</div>
-                    <button class="icon-btn" style="font-size: 1rem;" onclick="editCategory('${cat.id}')">✏️</button>
-                    <button class="icon-btn" onclick="deleteCategory('${cat.id}')">×</button>
+                    <button class="icon-btn" style="font-size: 1rem;" data-action="editCategory" data-id="${cat.id}">✏️</button>
+                    <button class="icon-btn" data-action="deleteCategory" data-id="${cat.id}">×</button>
                 </div>
             </div>
             <div class="grid">`;
@@ -135,8 +184,8 @@ function renderPlanTab() {
                     <div class="item-label-row">
                         <div class="item-label">${escapeHtml(item.label)}</div>
                         <div style="display:flex; gap: 5px;">
-                            <button class="icon-btn" style="width: 24px; height: 24px; font-size: 0.85rem;" onclick="editItem('${cat.id}', '${item.id}')">✏️</button>
-                            <button class="icon-btn" style="width: 24px; height: 24px;" onclick="deleteItem('${cat.id}', '${item.id}')">×</button>
+                            <button class="icon-btn" style="width: 24px; height: 24px; font-size: 0.85rem;" data-action="editItem" data-id="${cat.id}" data-item="${item.id}">✏️</button>
+                            <button class="icon-btn" style="width: 24px; height: 24px;" data-action="deleteItem" data-id="${cat.id}" data-item="${item.id}">×</button>
                         </div>
                     </div>
                     <div class="slider-row">
@@ -149,7 +198,7 @@ function renderPlanTab() {
         });
         html += `</div>
                 <div style="text-align:center; margin-top:20px;">
-                    <button class="icon-btn" style="width:auto; height:auto; border:1px solid #444; border-radius:8px; padding:8px 16px; font-size:0.95rem; margin:0 auto;" onclick="addItem('${cat.id}')">+ Agregar Ítem</button>
+                    <button class="icon-btn" style="width:auto; height:auto; border:1px solid #444; border-radius:8px; padding:8px 16px; font-size:0.95rem; margin:0 auto;" data-action="addItem" data-id="${cat.id}">+ Agregar Ítem</button>
                 </div>
         </div>`;
     });
@@ -223,7 +272,7 @@ function renderIncomeHistory() {
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <div class="log-amount" style="color: var(--green)">+ Q ${formatMoney(inc.amount)}</div>
-                <button class="icon-btn" onclick="deleteIncome('${inc.id}')">×</button>
+                <button class="icon-btn" data-action="deleteIncome" data-id="${inc.id}">×</button>
             </div>
         </div>`;
     });
@@ -297,7 +346,7 @@ function renderLogHistory() {
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <div class="log-amount">Q ${formatMoney(tx.amount)}</div>
-                <button class="icon-btn" onclick="deleteActual('${tx.id}')">×</button>
+                <button class="icon-btn" data-action="deleteActual" data-id="${tx.id}">×</button>
             </div>
         </div>`;
     });
@@ -360,6 +409,7 @@ function monthlySummary() {
     const categories = schema.map(category => ({
         id: category.id,
         title: category.title,
+        color: budgetColor(category.color),
         limit: category.items.reduce((total, item) => total + getBudgetVal(item.id), 0),
         spent: expenses.filter(entry => entry.catId === category.id).reduce((total, entry) => total + entry.amount, 0),
     }));
@@ -382,6 +432,12 @@ function updateGlobalHeader() {
     document.getElementById('summaryIncome').textContent = `Q ${formatMoney(income)}`;
     document.getElementById('summaryExpense').textContent = `Q ${formatMoney(spent)}`;
     document.getElementById('summaryLimit').textContent = `Q ${formatMoney(limit)}`;
+    const percent = limit > 0 ? Math.round(spent / limit * 100) : null;
+    const gauge = document.getElementById('budgetGauge');
+    gauge.style.setProperty('--fill', `${Math.max(0, Math.min(100, percent ?? 0))}%`);
+    gauge.classList.toggle('over', percent > 100);
+    document.getElementById('budgetPercent').textContent = percent === null ? '–' : `${percent}%`;
+    document.getElementById('budgetGaugeLabel').textContent = percent === null ? 'Sin plan de gastos' : 'del plan utilizado';
     const rows = categories.filter(category => category.limit || category.spent).map(category => {
         const ratio = category.limit > 0 ? category.spent / category.limit : 1;
         const tone = category.spent > category.limit ? 'over' : ratio >= 0.8 ? 'near' : 'normal';
@@ -389,7 +445,7 @@ function updateGlobalHeader() {
         const label = category.limit <= 0 ? 'Sin presupuesto'
             : category.spent > category.limit ? 'Excedido' : `${Math.round(ratio * 100)} % utilizado`;
         return `<div class="category-summary-row ${tone}">
-            <div><strong>${escapeHtml(category.title)}</strong><span>${label}</span></div>
+            <div><strong><i class="dot bg-${budgetColor(category.color)}" aria-hidden="true"></i>${escapeHtml(category.title)}</strong><span>${label}</span></div>
             <progress max="100" value="${percentage}" aria-label="${escapeHtml(category.title)}"></progress>
             <small>Q ${formatMoney(category.spent)} de Q ${formatMoney(category.limit)}</small>
         </div>`;
@@ -517,6 +573,45 @@ async function importBackup(event) {
         input.value = '';
     }
 }
+
+const actions = {
+    openExpense, addCategory, exportBackup, saveActualIncome, saveActualExpense, exportToCSV, exportToPDF,
+    chooseBackup: () => document.getElementById('importFile').click(),
+    currentMonth: useCurrentMonth,
+    previousMonth: () => stepMonth(-1),
+    nextMonth: () => stepMonth(1),
+    editCategory, deleteCategory, addItem, editItem, deleteItem, deleteIncome, deleteActual,
+};
+
+document.getElementById('budgetApp').addEventListener('click', event => {
+    const button = event.target.closest('button[data-action]');
+    if (!button || !Object.hasOwn(actions, button.dataset.action)) return;
+    actions[button.dataset.action](button.dataset.id, button.dataset.item);
+});
+document.getElementById('budgetNav').addEventListener('click', event => {
+    const button = event.target.closest('button[data-tab]');
+    if (button) switchTab(button.dataset.tab, button);
+});
+document.getElementById('brandHome').addEventListener('click', () => {
+    if (!document.getElementById('budgetApp').hidden) switchTab('home');
+});
+document.getElementById('profileButton').addEventListener('click', () => switchTab('profile'));
+document.getElementById('importFile').addEventListener('change', importBackup);
+document.getElementById('logCat').addEventListener('change', updateLogItems);
+monthSelector.addEventListener('change', changeMonth);
+window.addEventListener('pageshow', event => {
+    if (event.persisted) checkCalendar();
+    monthSelector.value = currentMonth;
+});
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkCalendar();
+});
+setInterval(checkCalendar, 60000);
+window.addEventListener('load', () => {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(error => console.warn('No se pudo registrar el service worker.', error));
+    }
+});
 
 const cloudConfigured = Boolean(window.budgetSupabaseConfig?.url || window.budgetSupabaseConfig?.publishableKey);
 try {
