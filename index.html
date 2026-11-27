@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Presupuesto">
@@ -149,29 +149,49 @@
             .header-title { color: #555 !important; }
         }
     </style>
+    <link rel="stylesheet" href="budget.css">
 </head>
 <body>
 
     <div class="container">
-        <!-- Encabezado Global -->
+        <div class="masthead"><h1>Mi presupuesto</h1><span>GTQ</span></div>
+        <section id="accountPanel" class="section account-panel" aria-label="Cuenta" hidden>
+            <p id="accountStatus" role="status"></p>
+            <form id="loginForm" hidden>
+                <label for="email">Correo electrónico</label>
+                <input id="email" name="email" type="email" autocomplete="username" required>
+                <label for="password">Contraseña</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button class="primary-btn">Iniciar sesión</button>
+            </form>
+            <button id="retrySync" class="secondary-btn" hidden>Reintentar</button>
+            <button id="reloadCloud" class="secondary-btn" hidden>Cargar versión de la nube</button>
+            <button id="signOut" class="secondary-btn" hidden>Cerrar sesión</button>
+        </section>
+        <main id="budgetApp">
         <div class="header">
             <div class="header-col">
-                <div class="header-title">Mes</div>
-                <select id="monthSelector" onchange="changeMonth()">
-                    <option value="2026-11">Noviembre 2026</option>
-                    <option value="2026-12" selected>Diciembre 2026</option>
-                    <option value="2027-01">Enero 2027</option>
-                    <option value="2027-02">Febrero 2027</option>
-                </select>
+                <label for="monthSelector" class="header-title">Mes del presupuesto</label>
+                <input type="month" id="monthSelector" onchange="changeMonth()" required>
             </div>
-            <div class="header-col" style="text-align: right; min-width: 140px;">
-                <div class="header-title">Disponible (Real)</div>
-                <div id="surplusDisplay" class="surplus">Q 0</div>
+            <div class="header-col balance">
+                <span class="header-title">Disponible del mes</span>
+                <div id="surplusDisplay" class="surplus">Q 0.00</div>
             </div>
         </div>
-
-        <!-- VISTA 1: PLANIFICAR PRESUPUESTO -->
-        <div id="view-plan" class="view active">
+        <section id="view-home" class="view active" aria-label="Resumen mensual">
+            <div class="summary-grid">
+                <div class="summary-card"><span>Ingresos registrados</span><strong id="summaryIncome">Q 0.00</strong></div>
+                <div class="summary-card"><span>Gastos registrados</span><strong id="summaryExpense">Q 0.00</strong></div>
+                <div class="summary-card"><span>Presupuesto de gastos</span><strong id="summaryLimit">Q 0.00</strong></div>
+            </div>
+            <button class="primary-btn quick-expense" type="button" onclick="openExpense()">+ Registrar gasto</button>
+            <section class="section category-panel">
+                <h2>Consumo por categoría</h2>
+                <div id="categorySummary"></div>
+            </section>
+        </section>
+        <section id="view-plan" class="view" aria-label="Plan del mes">
             <div class="section">
                 <div class="item-label-row" style="margin-bottom: 12px;">
                     <span class="item-label" style="font-weight: 600;">Ingreso Proyectado (Referencia)</span>
@@ -187,22 +207,22 @@
     <button class="export-btn" style="flex: 1; border-color: var(--yellow); color: var(--yellow);" onclick="document.getElementById('importFile').click()">⬆️ Importar Datos</button>
     <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importBackup(event)">
 </div>
-        </div>
+        </section>
 
         <!-- VISTA 2: INGRESOS -->
         <div id="view-income" class="view">
             <div class="section">
                 <div class="section-header">Registrar Nuevo Ingreso</div>
                 <div class="form-group">
-                    <label>Monto</label>
-                    <div class="input-prefix"><span>Q</span><input type="number" id="incomeLogAmount" placeholder="0.00"></div>
+                    <label for="incomeLogAmount">Monto</label>
+                    <div class="input-prefix"><span>Q</span><input type="number" id="incomeLogAmount" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00"></div>
                 </div>
                 <div class="form-group">
-                    <label>Descripción</label>
+                    <label for="incomeLogDesc">Descripción</label>
                     <input type="text" id="incomeLogDesc" placeholder="Ej. Quincena, Depósito, Venta...">
                 </div>
                 <div class="form-group">
-                    <label>Fecha</label>
+                    <label for="incomeLogDate">Fecha</label>
                     <input type="date" id="incomeLogDate">
                 </div>
                 <button class="primary-btn" style="background: var(--green); color: #000;" onclick="saveActualIncome()">Guardar Ingreso</button>
@@ -216,23 +236,23 @@
             <div class="section">
                 <div class="section-header">Registrar Nuevo Gasto</div>
                 <div class="form-group">
-                    <label>Monto</label>
-                    <div class="input-prefix"><span>Q</span><input type="number" id="logAmount" placeholder="0.00"></div>
+                    <label for="logAmount">Monto</label>
+                    <div class="input-prefix"><span>Q</span><input type="number" id="logAmount" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00"></div>
                 </div>
                 <div class="form-group">
-                    <label>Descripción</label>
+                    <label for="logDesc">Descripción</label>
                     <input type="text" id="logDesc" placeholder="Ej. Gasolinera Shell">
                 </div>
                 <div class="form-group">
-                    <label>Categoría</label>
+                    <label for="logCat">Categoría</label>
                     <select id="logCat" onchange="updateLogItems()"></select>
                 </div>
                 <div class="form-group">
-                    <label>Ítem Específico</label>
+                    <label for="logItem">Ítem Específico</label>
                     <select id="logItem"></select>
                 </div>
                 <div class="form-group">
-                    <label>Fecha</label>
+                    <label for="logDate">Fecha</label>
                     <input type="date" id="logDate">
                 </div>
                 <button class="primary-btn" onclick="saveActualExpense()">Guardar Gasto</button>
@@ -263,489 +283,19 @@
                 <button class="export-btn" onclick="exportToPDF()">🖨️ PDF</button>
             </div>
         </div>
+        </main>
     </div>
+    <nav id="budgetNav" class="bottom-nav" aria-label="Presupuesto">
+        <button id="nav-home" class="nav-item active" type="button" aria-current="page" onclick="switchTab('home', this)">Resumen</button>
+        <button id="nav-plan" class="nav-item" type="button" onclick="switchTab('plan', this)">Plan</button>
+        <button id="nav-income" class="nav-item" type="button" onclick="switchTab('income', this)">Ingresos</button>
+        <button id="nav-log" class="nav-item" type="button" onclick="switchTab('log', this)">Gastos</button>
+        <button id="nav-compare" class="nav-item" type="button" onclick="switchTab('compare', this)">Comparar</button>
+    </nav>
 
-    <!-- Navegación Inferior -->
-    <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('plan', this)">🎯 Planear</div>
-        <div class="nav-item" onclick="switchTab('income', this)">💰 Ingresos</div>
-        <div class="nav-item" onclick="switchTab('log', this)">📝 Gastos</div>
-        <div class="nav-item" onclick="switchTab('compare', this)">📊 Comparar</div>
-    </div>
-
-    <script>
-        const formatMoney = (amount) => amount.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
-        let currentMonth = document.getElementById('monthSelector').value;
-        document.getElementById('logDate').valueAsDate = new Date();
-        document.getElementById('incomeLogDate').valueAsDate = new Date();
-
-        const defaultSchema = [
-            { id: 'cat_debt', title: 'Deudas / Ahorros', color: 'blue', items: [ { id: 'cc_balance', label: 'Saldo Tarjeta de Crédito' }, { id: 'installments', label: 'Cuotas' } ]},
-            { id: 'cat_fixed', title: 'Gastos Fijos', color: 'green', items: [ { id: 'university', label: 'Mensualidad Universidad' }, { id: 'house', label: 'Servicios de Casa' }]},
-            { id: 'cat_trans', title: 'Transporte', color: 'yellow', items: [ { id: 'gasoline', label: 'Gasolina' }, { id: 'parking', label: 'Parqueo' }]},
-            { id: 'cat_life', title: 'Estilo de Vida', color: 'red', items: [ { id: 'work_food', label: 'Comida del Trabajo' }]}
-        ];
-
-        let schema = JSON.parse(localStorage.getItem('budget_schema')) || defaultSchema;
-        let allValues = JSON.parse(localStorage.getItem('budget_values')) || { '2026-12': { income: 11000, gasoline: 1500, work_food: 1114 } };
-        let allActuals = JSON.parse(localStorage.getItem('budget_actuals')) || {}; 
-        let allIncomes = JSON.parse(localStorage.getItem('budget_incomes')) || {}; // NUEVO: Datos de ingresos
-
-        // ----------- NAVEGACIÓN -----------
-        function switchTab(tabName, el) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
-            document.getElementById(`view-${tabName}`).classList.add('active');
-            el.classList.add('active');
-            
-            if(tabName === 'plan') renderPlanTab();
-            if(tabName === 'income') {
-                document.getElementById('incomeLogDate').valueAsDate = new Date();
-                renderIncomeHistory();
-            }
-            if(tabName === 'log') {
-                document.getElementById('logDate').valueAsDate = new Date();
-                renderLogTab();
-            }
-            if(tabName === 'compare') renderCompareTab();
-            
-            updateGlobalHeader();
-        }
-
-        function changeMonth() {
-            currentMonth = document.getElementById('monthSelector').value;
-            renderPlanTab();
-            renderIncomeHistory();
-            renderLogTab();
-            renderCompareTab();
-            updateGlobalHeader();
-        }
-
-        // ----------- DATOS -----------
-        function getBudgetVal(id) {
-            if (!allValues[currentMonth]) allValues[currentMonth] = {};
-            return allValues[currentMonth][id] || 0;
-        }
-
-        function getActualsForMonth() {
-            if (!allActuals[currentMonth]) allActuals[currentMonth] = [];
-            return allActuals[currentMonth];
-        }
-
-        function getIncomesForMonth() {
-            if (!allIncomes[currentMonth]) allIncomes[currentMonth] = [];
-            return allIncomes[currentMonth];
-        }
-
-        function saveAll() {
-            localStorage.setItem('budget_schema', JSON.stringify(schema));
-            localStorage.setItem('budget_values', JSON.stringify(allValues));
-            localStorage.setItem('budget_actuals', JSON.stringify(allActuals));
-            localStorage.setItem('budget_incomes', JSON.stringify(allIncomes));
-            updateGlobalHeader();
-        }
-
-        // ----------- PESTAÑA: PLANIFICAR -----------
-        function renderPlanTab() {
-            const container = document.getElementById('appContainer');
-            let html = '';
-            schema.forEach(cat => {
-                html += `
-                <div class="section ${cat.color}-section">
-                    <div class="section-header">
-                        <div style="display: flex; align-items: center;"><span class="dot bg-${cat.color}"></span> ${cat.title}</div>
-                        <div style="display:flex; align-items:center; gap:5px;">
-                            <div id="total-${cat.id}" class="total-amount" style="margin-right: 10px;">Q 0</div>
-                            <button class="icon-btn" style="font-size: 1rem;" onclick="editCategory('${cat.id}')">✏️</button>
-                            <button class="icon-btn" onclick="deleteCategory('${cat.id}')">×</button>
-                        </div>
-                    </div>
-                    <div class="grid">`;
-                
-                cat.items.forEach(item => {
-                    const val = getBudgetVal(item.id);
-                    const sliderMax = Math.max(3000, Math.ceil(val / 1000) * 1000); 
-                    html += `
-                        <div>
-                            <div class="item-label-row">
-                                <div class="item-label">${item.label}</div>
-                                <div style="display:flex; gap: 5px;">
-                                    <button class="icon-btn" style="width: 24px; height: 24px; font-size: 0.85rem;" onclick="editItem('${cat.id}', '${item.id}')">✏️</button>
-                                    <button class="icon-btn" style="width: 24px; height: 24px;" onclick="deleteItem('${cat.id}', '${item.id}')">×</button>
-                                </div>
-                            </div>
-                            <div class="slider-row">
-                                <input type="range" class="slider" data-id="${item.id}" min="0" max="${sliderMax}" value="${val}">
-                                <div class="input-prefix" style="width: 110px; flex-shrink: 0;">
-                                    <span>Q</span><input type="number" class="num-input" data-id="${item.id}" value="${val}">
-                                </div>
-                            </div>
-                        </div>`;
-                });
-                html += `</div>
-                        <div style="text-align:center; margin-top:20px;">
-                            <button class="icon-btn" style="width:auto; height:auto; border:1px solid #444; border-radius:8px; padding:8px 16px; font-size:0.95rem; margin:0 auto;" onclick="addItem('${cat.id}')">+ Agregar Ítem</button>
-                        </div>
-                </div>`;
-            });
-            container.innerHTML = html;
-            
-            document.getElementById('incomeInput').value = getBudgetVal('income');
-            
-            document.getElementById('incomeInput').addEventListener('input', (e) => {
-                allValues[currentMonth]['income'] = parseFloat(e.target.value) || 0;
-                saveAll();
-            });
-
-            document.querySelectorAll('.slider-row').forEach(group => {
-                const slider = group.querySelector('.slider');
-                const num = group.querySelector('.num-input');
-                const id = num.getAttribute('data-id');
-                const update = (val) => {
-                    allValues[currentMonth][id] = parseFloat(val) || 0;
-                    saveAll();
-                    updateCategoryTotals();
-                };
-                slider.addEventListener('input', (e) => { num.value = e.target.value; update(e.target.value); });
-                num.addEventListener('input', (e) => { 
-                    slider.value = e.target.value || 0; 
-                    if (parseFloat(e.target.value) > parseFloat(slider.max)) slider.max = Math.ceil(e.target.value / 1000) * 1000;
-                    update(e.target.value); 
-                });
-            });
-            updateCategoryTotals();
-        }
-
-        function updateCategoryTotals() {
-            schema.forEach(cat => {
-                let catSum = 0;
-                cat.items.forEach(item => { catSum += getBudgetVal(item.id); });
-                const el = document.getElementById(`total-${cat.id}`);
-                if(el) el.innerText = `Q ${formatMoney(catSum)}`;
-            });
-        }
-
-        // ----------- PESTAÑA: INGRESOS -----------
-        function saveActualIncome() {
-            const amount = parseFloat(document.getElementById('incomeLogAmount').value);
-            const desc = document.getElementById('incomeLogDesc').value;
-            const date = document.getElementById('incomeLogDate').value;
-
-            if(!amount) return alert("Por favor ingresa un monto válido.");
-
-            const newInc = { id: 'inc_' + Date.now(), amount, desc: desc || 'Ingreso', date };
-            getIncomesForMonth().unshift(newInc);
-            saveAll();
-            
-            document.getElementById('incomeLogAmount').value = '';
-            document.getElementById('incomeLogDesc').value = '';
-            renderIncomeHistory();
-        }
-
-        function renderIncomeHistory() {
-            const container = document.getElementById('incomeHistoryContainer');
-            const incomes = getIncomesForMonth();
-            if(incomes.length === 0) { 
-                container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding: 20px;">No hay ingresos registrados este mes.</div>'; 
-                return; 
-            }
-            let html = '';
-            incomes.forEach(inc => {
-                html += `
-                <div class="log-item-card" style="border-left-color: var(--green)">
-                    <div class="log-info">
-                        <div class="log-desc">${inc.desc}</div>
-                        <div class="log-meta">${inc.date}</div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="log-amount" style="color: var(--green)">+ Q ${formatMoney(inc.amount)}</div>
-                        <button class="icon-btn" onclick="deleteIncome('${inc.id}')">×</button>
-                    </div>
-                </div>`;
-            });
-            container.innerHTML = html;
-        }
-
-        function deleteIncome(id) {
-            allIncomes[currentMonth] = getIncomesForMonth().filter(i => i.id !== id);
-            saveAll();
-            renderIncomeHistory();
-        }
-
-        // ----------- PESTAÑA: GASTOS -----------
-        function renderLogTab() {
-            const catSelect = document.getElementById('logCat');
-            catSelect.innerHTML = '<option value="">-- Seleccionar Categoría --</option>';
-            schema.forEach(cat => { catSelect.innerHTML += `<option value="${cat.id}">${cat.title}</option>`; });
-            updateLogItems();
-            renderLogHistory();
-        }
-
-        function updateLogItems() {
-            const catId = document.getElementById('logCat').value;
-            const itemSelect = document.getElementById('logItem');
-            itemSelect.innerHTML = '<option value="">-- Seleccionar Ítem --</option>';
-            const cat = schema.find(c => c.id === catId);
-            if(cat) { cat.items.forEach(i => { itemSelect.innerHTML += `<option value="${i.id}">${i.label}</option>`; }); }
-        }
-
-        function saveActualExpense() {
-            const amount = parseFloat(document.getElementById('logAmount').value);
-            const desc = document.getElementById('logDesc').value;
-            const catId = document.getElementById('logCat').value;
-            const itemId = document.getElementById('logItem').value;
-            const date = document.getElementById('logDate').value;
-
-            if(!amount || !catId || !itemId) return alert("Por favor completa monto, categoría e ítem.");
-
-            const cat = schema.find(c => c.id === catId);
-            const newTx = { id: 'tx_' + Date.now(), amount, desc: desc || 'Sin título', catId, itemId, date, color: cat.color };
-            getActualsForMonth().unshift(newTx);
-            saveAll();
-            document.getElementById('logAmount').value = '';
-            document.getElementById('logDesc').value = '';
-            renderLogHistory();
-        }
-
-        function renderLogHistory() {
-            const container = document.getElementById('logHistoryContainer');
-            const actuals = getActualsForMonth();
-            if(actuals.length === 0) { container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding: 20px;">No hay gastos registrados este mes.</div>'; return; }
-            let html = '';
-            actuals.forEach(tx => {
-                const cat = schema.find(c => c.id === tx.catId);
-                const item = cat ? cat.items.find(i => i.id === tx.itemId) : null;
-                const itemLabel = item ? item.label : 'Ítem Eliminado';
-                html += `
-                <div class="log-item-card" style="border-left-color: var(--${tx.color})">
-                    <div class="log-info">
-                        <div class="log-desc">${tx.desc}</div>
-                        <div class="log-meta">${itemLabel} • ${tx.date}</div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="log-amount">Q ${formatMoney(tx.amount)}</div>
-                        <button class="icon-btn" onclick="deleteActual('${tx.id}')">×</button>
-                    </div>
-                </div>`;
-            });
-            container.innerHTML = html;
-        }
-
-        function deleteActual(txId) {
-            allActuals[currentMonth] = getActualsForMonth().filter(tx => tx.id !== txId);
-            saveAll();
-            renderLogHistory();
-        }
-
-        // ----------- COMPARACIÓN Y ENCABEZADO -----------
-        function renderCompareTab() {
-            const container = document.getElementById('compareContainer');
-            const actuals = getActualsForMonth();
-            let totalBudgeted = 0;
-            let totalActual = 0;
-            let html = '';
-            
-            schema.forEach(cat => {
-                let catBudget = 0;
-                let catActual = 0;
-                let itemsHtml = '';
-                cat.items.forEach(item => {
-                    const iBudget = getBudgetVal(item.id);
-                    const iActual = actuals.filter(tx => tx.itemId === item.id).reduce((sum, tx) => sum + tx.amount, 0);
-                    catBudget += iBudget;
-                    catActual += iActual;
-                    if(iBudget > 0 || iActual > 0) {
-                        const iPct = iBudget > 0 ? Math.min((iActual / iBudget) * 100, 100) : 100;
-                        const isOver = iActual > iBudget;
-                        itemsHtml += `
-                        <div class="compare-row">
-                            <div class="compare-labels">
-                                <span>${item.label}</span>
-                                <span class="text-muted" style="color: ${isOver ? 'var(--red)' : ''}">Q ${formatMoney(iActual)} / Q ${formatMoney(iBudget)}</span>
-                            </div>
-                            <div class="compare-bar-bg">
-                                <div class="compare-bar-fill bg-${cat.color} ${isOver ? 'over-budget' : ''}" style="width: ${iPct}%;"></div>
-                            </div>
-                        </div>`;
-                    }
-                });
-                totalBudgeted += catBudget;
-                totalActual += catActual;
-                if (catBudget > 0 || catActual > 0) {
-                    html += `
-                    <div class="cat-compare-card">
-                        <div class="cat-compare-title"><span class="dot bg-${cat.color}"></span> ${cat.title} <span class="text-muted" style="margin-left:auto; font-size:0.95rem; font-weight:normal;">Q ${formatMoney(catActual)} / Q ${formatMoney(catBudget)}</span></div>
-                        ${itemsHtml}
-                    </div>`;
-                }
-            });
-            container.innerHTML = html;
-            
-            document.getElementById('overviewText').innerText = `Q ${formatMoney(totalActual)} Real / Q ${formatMoney(totalBudgeted)} Plan`;
-            const overPct = totalBudgeted > 0 ? Math.min((totalActual / totalBudgeted) * 100, 100) : 0;
-            const bar = document.getElementById('overviewBar');
-            bar.style.width = `${overPct}%`;
-            bar.className = `compare-bar-fill ${totalActual > totalBudgeted ? 'bg-red' : 'bg-blue'}`;
-        }
-
-        function updateGlobalHeader() {
-            // Ingresos Totales Reales
-            const incomes = getIncomesForMonth();
-            const totalActualIncomes = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-            
-            // Gastos Totales Reales
-            const actuals = getActualsForMonth();
-            const totalActualExpenses = actuals.reduce((sum, tx) => sum + tx.amount, 0);
-            
-            // Disponible = Ingresos Reales - Gastos Reales
-            const surplus = totalActualIncomes - totalActualExpenses;
-            
-            const el = document.getElementById('surplusDisplay');
-            el.innerText = `Q ${formatMoney(surplus)}`;
-            el.style.color = surplus >= 0 ? 'var(--green)' : 'var(--red)';
-        }
-
-        // ----------- EXPORTACIÓN -----------
-        function exportToCSV() {
-            let csvContent = "Categoría,Ítem,Tipo,Monto (Q),Fecha,Descripción\n";
-            
-            // 1. Ingresos Reales
-            const incomes = getIncomesForMonth();
-            incomes.forEach(inc => {
-                csvContent += `"Ingresos","Ingreso","Ingreso Real",${inc.amount},${inc.date},"${inc.desc}"\n`;
-            });
-
-            // 2. Presupuestos y Gastos Reales
-            const actuals = getActualsForMonth();
-            schema.forEach(cat => {
-                cat.items.forEach(item => {
-                    const budgeted = getBudgetVal(item.id);
-                    csvContent += `"${cat.title}","${item.label}","Límite Presupuestado",${budgeted},,\n`;
-                    
-                    const itemActuals = actuals.filter(tx => tx.itemId === item.id);
-                    itemActuals.forEach(tx => {
-                        csvContent += `"${cat.title}","${item.label}","Gasto Real",${tx.amount},${tx.date},"${tx.desc}"\n`;
-                    });
-                });
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Presupuesto_${currentMonth}.csv`;
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function exportToPDF() {
-            window.print();
-        }
-
-        // ----------- EDICIÓN DE CATEGORÍAS E ÍTEMS -----------
-        function addCategory() {
-            const title = prompt("Nombre de la nueva categoría:");
-            if (!title) return;
-            const color = prompt("Color (blue, green, yellow, red, purple, orange):", "purple") || "purple";
-            schema.push({ id: 'cat_' + Date.now(), title, color, items: [] });
-            saveAll();
-            renderPlanTab();
-        }
-
-        function addItem(catId) {
-            const label = prompt("Nombre del nuevo ítem de gasto:");
-            if (!label) return;
-            const cat = schema.find(c => c.id === catId);
-            cat.items.push({ id: 'item_' + Date.now(), label });
-            saveAll();
-            renderPlanTab();
-        }
-
-        function editCategory(id) {
-            const cat = schema.find(c => c.id === id);
-            if(!cat) return;
-            const newTitle = prompt("Editar nombre de la categoría:", cat.title);
-            if (newTitle && newTitle.trim() !== "") {
-                cat.title = newTitle.trim();
-                saveAll();
-                renderPlanTab();
-            }
-        }
-
-        function editItem(catId, itemId) {
-            const cat = schema.find(c => c.id === catId);
-            if(!cat) return;
-            const item = cat.items.find(i => i.id === itemId);
-            if(!item) return;
-            const newLabel = prompt("Editar nombre del ítem:", item.label);
-            if (newLabel && newLabel.trim() !== "") {
-                item.label = newLabel.trim();
-                saveAll();
-                renderPlanTab();
-            }
-        }
-
-        function deleteCategory(id) {
-            if(confirm("¿Eliminar categoría completa?")) { schema = schema.filter(c => c.id !== id); saveAll(); renderPlanTab(); }
-        }
-
-        function deleteItem(catId, itemId) {
-            if(confirm("¿Eliminar este ítem?")) {
-                const cat = schema.find(c => c.id === catId);
-                cat.items = cat.items.filter(i => i.id !== itemId);
-                saveAll();
-                renderPlanTab();
-            }
-        }
-
-        // INICIALIZACIÓN
-
-        // ----------- RESPALDO (IMPORTAR / EXPORTAR JSON) -----------
-        function exportBackup() {
-            const data = {
-                schema: localStorage.getItem('budget_schema'),
-                values: localStorage.getItem('budget_values'),
-                actuals: localStorage.getItem('budget_actuals'),
-                incomes: localStorage.getItem('budget_incomes') || "{}"
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const dateStr = new Date().toISOString().split('T')[0];
-            a.download = `Presupuesto_Respaldo_${dateStr}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function importBackup(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if(confirm("¿Estás seguro? Esto reemplazará todos los datos actuales por los del archivo de respaldo.")){
-                        if (data.schema) localStorage.setItem('budget_schema', data.schema);
-                        if (data.values) localStorage.setItem('budget_values', data.values);
-                        if (data.actuals) localStorage.setItem('budget_actuals', data.actuals);
-                        if (data.incomes) localStorage.setItem('budget_incomes', data.incomes);
-                        alert("Datos importados con éxito. La aplicación se recargará.");
-                        location.reload(); // Recarga para aplicar los nuevos datos
-                    }
-                } catch (err) {
-                    alert("Error al leer el archivo. Asegúrate de que sea un archivo de respaldo válido (.json).");
-                }
-                // Limpiar el input para permitir importar el mismo archivo de nuevo si es necesario
-                event.target.value = '';
-            };
-            reader.readAsText(file);
-        }
-        
-        renderPlanTab();
-        updateGlobalHeader();
-    </script>
+    <script src="supabase-config.js"></script>
+    <script src="budget-data.js"></script>
+    <script src="budget.js"></script>
+    <script src="budget-cloud.js"></script>
 </body>
 </html>
